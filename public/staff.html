@@ -4,68 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WashX - Staff Management</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0b0f; color: #ffffff; min-height: 100vh; }
-        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #1a1d24; padding: 20px; border-right: 1px solid #2d3139; }
-        .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
-        .logo-icon { width: 32px; height: 32px; background: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; color: white; }
-        .logo-text { font-size: 18px; font-weight: 600; }
-        .nav-menu { list-style: none; }
-        .nav-item { margin-bottom: 8px; }
-        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #9ca3af; text-decoration: none; border-radius: 8px; transition: all 0.2s; }
-        .nav-link:hover { background: #2d3139; color: #ffffff; }
-        .nav-link.active { background: #374151; color: #ffffff; }
-        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
-        .main-content { margin-left: 240px; padding: 24px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-        .page-title { font-size: 32px; font-weight: 700; }
-        .page-subtitle { font-size: 16px; color: #9ca3af; margin-top: 4px; }
-        .header-actions { display: flex; align-items: center; gap: 16px; }
-        .add-button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
-        .add-button:hover { background: #2563eb; }
-        .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px; margin-top: 24px; }
-        .staff-card { background: #1f2937; border: 1px solid #374151; border-radius: 16px; padding: 24px; transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .staff-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); border-color: #4b5563; }
-        .staff-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
-        .staff-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-        .staff-info { display: flex; align-items: center; gap: 16px; }
-        .staff-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; background: #3b82f6; }
-        .staff-details h3 { font-size: 18px; font-weight: 600; color: #ffffff; margin-bottom: 4px; }
-        .staff-id { font-size: 14px; color: #6b7280; }
-        .staff-actions { display: flex; gap: 8px; }
-        .action-btn { width: 32px; height: 32px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .edit-btn { background: #374151; color: #9ca3af; }
-        .edit-btn:hover { background: #4b5563; color: #ffffff; }
-        .delete-btn { background: #374151; color: #9ca3af; }
-        .delete-btn:hover { background: #dc2626; color: #ffffff; }
-        .role-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-bottom: 16px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .contact-info { margin-bottom: 16px; }
-        .contact-item { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 14px; color: #9ca3af; }
-        .contact-icon { width: 16px; height: 16px; color: #6b7280; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); }
-        .modal-content { background: #1f2937; margin: 5% auto; padding: 32px; border-radius: 16px; width: 90%; max-width: 500px; border: 1px solid #374151; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .modal-title { font-size: 24px; font-weight: 600; }
-        .close-button { background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s; }
-        .close-button:hover { background: #374151; color: #ffffff; }
-        .form-group { margin-bottom: 20px; }
-        .form-label { display: block; margin-bottom: 8px; font-weight: 600; }
-        .form-input, .form-select { width: 100%; padding: 12px; background: #374151; border: 1px solid #4b5563; border-radius: 8px; color: #ffffff; font-size: 14px; }
-        .form-select[multiple] { height: 120px; }
-        .form-input:focus, .form-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
-        .btn-secondary { background: #374151; color: #ffffff; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-secondary, .btn-primary { border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-secondary:hover { background: #4b5563; }
-        .btn-primary:hover { background: #2563eb; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; grid-column: 1 / -1; }
-        .empty-icon { font-size: 48px; margin-bottom: 16px; }
-        .loading { display: flex; justify-content: center; align-items: center; padding: 60px; color: #6b7280; }
-        .spinner { width: 32px; height: 32px; border: 3px solid #374151; border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+<link rel="stylesheet" href="/styles/style.css">
+
 </head>
 <body>
     <nav class="sidebar">
@@ -73,11 +13,53 @@
             <div class="logo-icon">WX</div>
             <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
         </div>
+        
         <ul class="nav-menu">
-            <li class="nav-item"><a href="/home.html" class="nav-link">📊 Dashboard</a></li>
-            <li class="nav-item"><a href="/staff.html" class="nav-link active">👨‍💼 Staff</a></li>
+            <li class="nav-item">
+                <a href="/home.html" class="nav-link active">
+                    <div class="nav-icon">📊</div>
+                    Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">📦</div>
+                    Orders
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="customers.html" class="nav-link">
+                    <div class="nav-icon">👥</div>
+                    Customers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">🏢</div>
+                    Slots
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">🔔</div>
+                    Notifications
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">📈</div>
+                    Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/staff.html" class="nav-link">
+                    <div class="nav-icon">👨‍💼</div>
+                    Staff
+                </a>
+            </li>
         </ul>
     </nav>
+
 
     <main class="main-content">
         <header class="header">

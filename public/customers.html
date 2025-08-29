@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Customer Management</title>
+<link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+   <nav class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">WX</div>
+            <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+        </div>
+        
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="/home.html" class="nav-link active">
+                    <div class="nav-icon">📊</div>
+                    Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">📦</div>
+                    Orders
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="customers.html" class="nav-link">
+                    <div class="nav-icon">👥</div>
+                    Customers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">🏢</div>
+                    Slots
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">🔔</div>
+                    Notifications
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">📈</div>
+                    Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/staff.html" class="nav-link">
+                    <div class="nav-icon">👨‍💼</div>
+                    Staff
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Customer Management</h1>
+                <p class="page-subtitle">Manage customer accounts and create bookings</p>
+            </div>
+            <div class="header-actions">
+                <button class="add-button" id="openAddModalBtn">
+                    <span>+</span> Add Customer
+                </button>
+            </div>
+        </header>
+
+        <div class="search-bar">
+            <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search customers by name or phone...">
+            </div>
+        </div>
+
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <span style="margin-left: 12px;">Loading customers...</span>
+        </div>
+        
+        <div class="customer-list" id="customerListContainer" style="display: none;">
+            <div class="list-header">
+                <div>Customer</div>
+                <div>Contact</div>
+                <div>Location</div>
+                <div>Orders</div>
+                <div>Actions</div>
+            </div>
+            <div id="customerList"></div>
+        </div>
+    </main>
+
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add New Customer</h2>
+                <button class="close-button" id="closeModalBtn">&times;</button>
+            </div>
+            <form id="customerForm">
+                <input type="hidden" id="customer-id" name="id">
+                <div class="form-group"><label class="form-label" for="customerName">Full Name</label><input type="text" class="form-input" id="customerName" name="customerName" required></div>
+                <div class="form-group"><label class="form-label" for="phone">Phone Number</label><input type="tel" class="form-input" id="phone" name="phone" required></div>
+                <div class="form-group"><label class="form-label" for="address">Address (e.g., Flat No, Block)</label><input type="text" class="form-input" id="address" name="address"></div>
+                <div class="form-group">
+                    <label class="form-label" for="society">Society</label>
+                    <select class="form-select" id="society" name="society" required>
+                        <option value="">Loading societies...</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">Add Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // State and DOM Elements
+        let currentCustomerList = [];
+        const customerModal = document.getElementById('customerModal');
+        const customerForm = document.getElementById('customerForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const submitBtn = document.getElementById('submitBtn');
+        const customerIdInput = document.getElementById('customer-id');
+        const searchInput = document.getElementById('searchInput');
+
+        // =================================================================
+        //                 DYNAMIC DATA POPULATION
+        // =================================================================
+        const populateSocietiesDropdown = async () => {
+            try {
+                const response = await fetch('/api/societies');
+                if (!response.ok) throw new Error('Failed to fetch societies');
+                const societies = await response.json();
+                const societyDropdown = document.getElementById('society');
+                societyDropdown.innerHTML = '<option value="" disabled selected>-- Select a Society --</option>';
+                societies.forEach(society => {
+                    societyDropdown.innerHTML += `<option value="${society._id}">${society.name}</option>`;
+                });
+            } catch (error) {
+                console.error(error);
+                document.getElementById('society').innerHTML = '<option value="">Error loading societies</option>';
+            }
+        };
+
+        // =================================================================
+        //                   LIST RENDERING
+        // =================================================================
+        function renderCustomerList(data = currentCustomerList) {
+            const customerListDiv = document.getElementById('customerList');
+            const container = document.getElementById('customerListContainer');
+            
+            if (data.length === 0) {
+                customerListDiv.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px;"><h3>No customers found.</h3><p>Click "Add Customer" to get started.</p></div>`;
+                return;
+            }
+
+            customerListDiv.innerHTML = data.map((customer) => {
+                const societyName = customer.society ? customer.society.name : 'N/A';
+                const memberSince = new Date(customer.createdAt || Date.now()).toLocaleDateString("en-GB");
+                const initials = (customer.customerName || '').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+
+                return `
+                <div class="list-row">
+                    <div class="customer-cell">
+                        <div class="avatar">${initials}</div>
+                        <div>
+                            <strong>${customer.customerName}</strong>
+                            <small>Member since ${memberSince}</small>
+                        </div>
+                    </div>
+                    <div class="contact-cell">
+                        <span>📞 ${customer.phone || 'N/A'}</span>
+                    </div>
+                    <div class="location-cell">
+                        <strong>${societyName}</strong>
+                        <small>${customer.address || 'N/A'}</small>
+                    </div>
+                    <div class="orders-cell">
+                        0 orders
+                    </div>
+                    <div class="actions-cell">
+                        <a href="#" onclick="openModalForEdit('${customer._id}')" class="action-link view">✏️ Edit</a>
+                        <a href="#" onclick="deleteCustomer('${customer._id}')" class="action-link book" style="color: #ef4444;">🗑️ Delete</a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        // =================================================================
+        //                 FETCH & DELETE OPERATIONS
+        // =================================================================
+        const fetchCustomers = async () => {
+            try {
+                document.getElementById('loadingState').style.display = 'flex';
+                document.getElementById('customerListContainer').style.display = 'none';
+                
+                const response = await fetch('/api/customers');
+                if (!response.ok) throw new Error(`Network Error: ${response.statusText}`);
+                
+                currentCustomerList = await response.json();
+                renderCustomerList();
+            } catch (error) {
+                console.error('Failed to fetch customers:', error);
+                document.getElementById('loadingState').innerHTML = `<div class="empty-state"><h3>⚠️ Error</h3><p>Could not load customer data.</p></div>`;
+            } finally {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('customerListContainer').style.display = 'block';
+            }
+        };
+
+        window.deleteCustomer = async (id) => {
+            if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) return;
+            try {
+                const response = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+                fetchCustomers();
+            } catch (error) {
+                alert(`Error deleting customer: ${error.message}`);
+            }
+        };
+
+        // =================================================================
+        //                   MODAL HANDLING
+        // =================================================================
+        function openModalForAdd() {
+            customerForm.reset();
+            customerIdInput.value = '';
+            modalTitle.textContent = 'Add New Customer';
+            submitBtn.textContent = 'Add Customer';
+            customerModal.style.display = 'block';
+        }
+
+        window.openModalForEdit = (id) => {
+            const customer = currentCustomerList.find(c => c._id === id);
+            if (!customer) return;
+            
+            customerForm.reset();
+            modalTitle.textContent = 'Edit Customer Details';
+            submitBtn.textContent = 'Save Changes';
+            
+            customerIdInput.value = customer._id;
+            document.getElementById('customerName').value = customer.customerName;
+            document.getElementById('phone').value = customer.phone || '';
+            document.getElementById('address').value = customer.address || '';
+            document.getElementById('society').value = customer.society ? customer.society._id : '';
+            
+            customerModal.style.display = 'block';
+        };
+
+        function closeModal() {
+            customerModal.style.display = 'none';
+        }
+
+        // =================================================================
+        //                   FORM SUBMISSION
+        // =================================================================
+        customerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            const id = data.id;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/customers/${id}` : '/api/customers';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+                
+                closeModal();
+                fetchCustomers();
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+        
+        // =================================================================
+        //                   EVENT LISTENERS & INITIALIZATION
+        // =================================================================
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = currentCustomerList.filter(customer =>
+                customer.customerName.toLowerCase().includes(searchTerm) ||
+                customer.phone.includes(searchTerm)
+            );
+            renderCustomerList(filteredData);
+        });
+
+        document.getElementById('openAddModalBtn').addEventListener('click', openModalForAdd);
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        window.addEventListener('click', (e) => {
+            if (e.target === customerModal) {
+                closeModal();
+            }
+        });
+
+        async function initializePage() {
+            await populateSocietiesDropdown();
+            await fetchCustomers();
+        }
+
+        initializePage();
+    </script>
+</body>
+</html>
