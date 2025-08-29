@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Order Management</title>
+    <link rel="stylesheet" href="/styles/style.css">
+    <style>
+        /* Main list now has 6 columns to separate statuses */
+        .order-list .list-header, .order-list .list-row {
+            grid-template-columns: 2fr 3fr 2fr 1.5fr 1.5fr 1.5fr;
+        }
+
+        /* Badge styles */
+        .status-badge { padding: 4px 10px; border-radius: 16px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; display: inline-block; }
+        .payment-badge { padding: 4px 10px; border-radius: 16px; font-size: 0.75rem; font-weight: 500; display: inline-block; }
+        
+        /* Action link styles */
+        .action-link { margin-right: 12px; }
+
+        /* Styles for the new items popover */
+        .items-popover {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 300px;
+            z-index: 100;
+            font-size: 0.85rem;
+        }
+        .items-popover-header {
+            padding: 8px 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+        }
+        .items-popover-list {
+            padding: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .items-popover-item {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 8px;
+            padding: 6px 4px;
+        }
+        .items-popover-item:not(:last-child) {
+            border-bottom: 1px dashed #f3f4f6;
+        }
+        .items-popover-item .item-name {
+            color: #374151;
+        }
+        .items-popover-item .item-qty {
+            text-align: right;
+            color: #6b7280;
+        }
+
+        /* Clickable link for item count */
+        .items-link {
+            cursor: pointer;
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .items-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Modal Styles */
+        #paymentDetailsSection { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background-color: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 10px; }
+        .item-list-modal { border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 1rem; }
+        .item-list-header, .item-list-row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr; gap: 10px; padding: 8px 12px; align-items: center; font-size: 0.9rem; }
+        .item-list-header { font-weight: 600; background-color: #f9fafb; }
+        .item-list-row:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
+        #modalTotal { text-align: right; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+   <nav class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">WX</div>
+            <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
+            <li class="nav-item"><a href="/orders.html" class="nav-link active"><div class="nav-icon">📦</div>Orders</a></li>
+            <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+            <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Order Management</h1>
+                <p class="page-subtitle">Track and manage all customer orders</p>
+            </div>
+            <div class="header-actions">
+                <a href="/customers.html" class="add-button">
+                    <span>+</span> Create Order
+                </a>
+            </div>
+        </header>
+
+        <div class="search-bar">
+            <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search by Order ID or Customer Name...">
+            </div>
+        </div>
+
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <span style="margin-left: 12px;">Loading orders...</span>
+        </div>
+          
+        <div class="customer-list order-list" id="orderListContainer" style="display: none;">
+            <div class="list-header">
+                <div>Order & Date</div>
+                <div>Customer</div>
+                <div>Amount & Items</div>
+                <div>Order Status</div>
+                <div>Payment Status</div>
+                <div>Actions</div>
+            </div>
+            <div id="orderList"></div>
+        </div>
+    </main>
+
+    <div id="orderDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Order Details: <span id="modalOrderId"></span></h2>
+                <button class="close-button" id="closeModalBtn">&times;</button>
+            </div>
+            <form id="orderUpdateForm">
+                <input type="hidden" id="order-id-input">
+                
+                <h4>Customer Information</h4>
+                <p><strong>Name:</strong> <span id="modalCustomerName"></span></p>
+                <p><strong>Phone:</strong> <span id="modalCustomerPhone"></span></p>
+                <p><strong>Location:</strong> <span id="modalCustomerLocation"></span></p>
+
+                <hr style="margin: 20px 0;">
+
+                <h4>Update Status</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label for="orderStatus" class="form-label">Order Status</label>
+                        <select id="orderStatus" name="orderStatus" class="form-select">
+                            <option value="New">New</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Pick-up Pending">Pick-up Pending</option>
+                            <option value="In-Progress">In-Progress</option>
+                            <option value="Delivery Pending">Delivery Pending</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Collection Pending">Collection Pending</option>
+                            <option value="Collected">Collected</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="paymentStatus" class="form-label">Payment Status</label>
+                        <select id="paymentStatus" name="paymentStatus" class="form-select">
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                </div>
+                  
+                <div id="paymentDetailsSection" style="display: none;">
+                     <div class="form-group">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select id="paymentMethod" name="paymentMethod" class="form-select">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Credit-Card">Credit Card</option>
+                            <option value="Debit-Card">Debit Card</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="transactionID" class="form-label">Transaction ID (Optional)</label>
+                        <input type="text" id="transactionID" name="transactionID" class="form-input">
+                    </div>
+                </div>
+
+                <hr style="margin: 20px 0;">
+                  
+                <h4>Order Items</h4>
+                <div class="item-list-modal">
+                    <div class="item-list-header">
+                        <div>Service Name</div>
+                        <div>Price</div>
+                        <div>Quantity</div>
+                        <div>Subtotal</div>
+                    </div>
+                    <div id="modalItemsContainer"></div>
+                </div>
+                <div id="modalTotal">Total: ₹0.00</div>
+
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let allOrders = [];
+        const orderListDiv = document.getElementById('orderList');
+        const searchInput = document.getElementById('searchInput');
+        const modal = document.getElementById('orderDetailsModal');
+
+        // Helper functions for badges
+        const getStatusBadge = (status) => {
+            const colors = {
+                'New': { bg: '#e0f2fe', text: '#0ea5e9' },
+                'Cancelled': { bg: '#fee2e2', text: '#ef4444' },
+                'Pick-up Pending': { bg: '#fef3c7', text: '#d97706' },
+                'In-Progress': { bg: '#dbeafe', text: '#3b82f6' },
+                'Delivery Pending': { bg: '#fef3c7', text: '#d97706' },
+                'Delivered': { bg: '#dcfce7', text: '#22c55e' },
+                'Collection Pending': { bg: '#fef3c7', text: '#d97706' },
+                'Collected': { bg: '#dcfce7', text: '#22c55e' },
+            };
+            const color = colors[status] || { bg: '#f3f4f6', text: '#4b5563' };
+            return `<span class="status-badge" style="background-color: ${color.bg}; color: ${color.text};">${status}</span>`;
+        };
+          
+        const getPaymentBadge = (status) => {
+            const color = status === 'Confirmed' ? { bg: '#dcfce7', text: '#16a34a' } : { bg: '#fee2e2', text: '#dc2626' };
+            return `<span class="payment-badge" style="background-color: ${color.bg}; color: ${color.text};">${status}</span>`;
+        };
+          
+        // ==========================================================
+        //         NEW: Functions to handle item list popover
+        // ==========================================================
+        const closeActivePopover = () => {
+            const existingPopover = document.getElementById('items-popover-active');
+            if (existingPopover) {
+                existingPopover.remove();
+            }
+        };
+
+        const showItemsPopover = (event, orderId) => {
+            event.preventDefault();
+            event.stopPropagation(); // Prevents the window click listener from firing immediately
+
+            closeActivePopover(); // Close any other popovers
+
+            const order = allOrders.find(o => o._id === orderId);
+            if (!order) return;
+
+            const popover = document.createElement('div');
+            popover.className = 'items-popover';
+            popover.id = 'items-popover-active';
+
+            const itemsHtml = order.items.map(item => `
+                <div class="items-popover-item">
+                    <span class="item-name">${item.serviceID.serviceName}</span>
+                    <span class="item-qty">Qty: ${item.quantity}</span>
+                </div>
+            `).join('');
+
+            popover.innerHTML = `
+                <div class="items-popover-header">Items in Order #${order._id.slice(-6).toUpperCase()}</div>
+                <div class="items-popover-list">${itemsHtml}</div>
+            `;
+            
+            document.body.appendChild(popover);
+
+            // Position the popover near the clicked link
+            const rect = event.target.getBoundingClientRect();
+            popover.style.left = `${rect.left}px`;
+            popover.style.top = `${rect.bottom + window.scrollY + 5}px`;
+
+            // Add a listener to close when clicking elsewhere
+            window.addEventListener('click', closeActivePopover, { once: true });
+        };
+
+
+        // ==========================================================
+        //         MODIFIED: Render Function for 6-column List View
+        // ==========================================================
+        const renderOrders = (ordersToRender) => {
+            if (ordersToRender.length === 0) {
+                orderListDiv.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px;"><h3>No orders found.</h3><p>Create a new order from the customer management page.</p></div>`;
+                return;
+            }
+            orderListDiv.innerHTML = ordersToRender.map(order => {
+                const customer = order.customerID || {};
+                const society = customer.society || {};
+                const orderDate = new Date(order.orderedOn).toLocaleDateString('en-GB');
+                const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
+                const initials = (customer.customerName || '').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+
+                return `
+                <div class="list-row">
+                    <div>
+                        <strong>#${order._id.slice(-6).toUpperCase()}</strong>
+                        <small>${orderDate}</small>
+                    </div>
+                    <div class="customer-cell">
+                        <div class="avatar">${initials}</div>
+                        <div>
+                            <strong>${customer.customerName || 'N/A'}</strong>
+                            <small>${society.name || 'N/A'}</small>
+                        </div>
+                    </div>
+                    <div>
+                        <strong>₹${order.billAmount.toFixed(2)}</strong>
+                        <small>
+                            <a href="#" class="items-link" onclick="showItemsPopover(event, '${order._id}')">
+                                ${totalItems} items
+                            </a>
+                        </small>
+                    </div>
+                    <div>${getStatusBadge(order.orderStatus)}</div>
+                    <div>${getPaymentBadge(order.paymentStatus)}</div>
+                    <div class="actions-cell">
+                        <a href="#" onclick="openModal('${order._id}')" class="action-link">👁️ View</a>
+                        <a href="#" onclick="openModal('${order._id}')" class="action-link">✏️ Edit</a>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        };
+
+        // Fetch all orders
+        const fetchOrders = async () => {
+            try {
+                document.getElementById('loadingState').style.display = 'flex';
+                document.getElementById('orderListContainer').style.display = 'none';
+                  
+                const response = await fetch('/api/orders');
+                if (!response.ok) throw new Error('Failed to fetch orders');
+                  
+                allOrders = await response.json();
+                renderOrders(allOrders);
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('loadingState').innerHTML = `<div class="empty-state"><h3>⚠️ Error</h3><p>Could not load order data.</p></div>`;
+            } finally {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('orderListContainer').style.display = 'block';
+            }
+        };
+          
+        // MODIFIED: Modal Handling to show customer phone
+        const openModal = async (orderId) => {
+            try {
+                const response = await fetch(`/api/orders/${orderId}`);
+                if (!response.ok) throw new Error('Failed to fetch order details');
+                const order = await response.json();
+
+                document.getElementById('order-id-input').value = order._id;
+                document.getElementById('modalOrderId').textContent = `#${order._id.slice(-6).toUpperCase()}`;
+                document.getElementById('modalCustomerName').textContent = order.customerID.customerName;
+                document.getElementById('modalCustomerPhone').textContent = order.customerID.phone; // Added Phone
+                document.getElementById('modalCustomerLocation').textContent = `${order.customerID.address}, ${order.customerID.society.name}`;
+                  
+                const orderStatusSelect = document.getElementById('orderStatus');
+                const paymentStatusSelect = document.getElementById('paymentStatus');
+                const paymentDetailsSection = document.getElementById('paymentDetailsSection');
+                  
+                orderStatusSelect.value = order.orderStatus;
+                paymentStatusSelect.value = order.paymentStatus;
+                document.getElementById('paymentMethod').value = order.paymentMethod;
+                document.getElementById('transactionID').value = order.transactionID || '';
+                  
+                paymentDetailsSection.style.display = paymentStatusSelect.value === 'Confirmed' ? 'grid' : 'none';
+
+                const itemsContainer = document.getElementById('modalItemsContainer');
+                itemsContainer.innerHTML = order.items.map(item => `
+                    <div class="item-list-row">
+                        <div>${item.serviceID.serviceName}</div>
+                        <div>₹${item.basePrice.toFixed(2)}</div>
+                        <div>${item.quantity}</div>
+                        <div><strong>₹${(item.basePrice * item.quantity).toFixed(2)}</strong></div>
+                    </div>
+                `).join('');
+                document.getElementById('modalTotal').textContent = `Total: ₹${order.billAmount.toFixed(2)}`;
+
+                modal.style.display = 'block';
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        };
+
+        const closeModal = () => {
+            modal.style.display = 'none';
+        };
+
+        // Event Listeners (No significant changes needed below)
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filteredOrders = allOrders.filter(order => 
+                order._id.toLowerCase().includes(term) ||
+                (order.customerID && order.customerID.customerName.toLowerCase().includes(term))
+            );
+            renderOrders(filteredOrders);
+        });
+
+        document.getElementById('paymentStatus').addEventListener('change', (e) => {
+            document.getElementById('paymentDetailsSection').style.display = e.target.value === 'Confirmed' ? 'grid' : 'none';
+        });
+
+        document.getElementById('orderUpdateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const orderId = document.getElementById('order-id-input').value;
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            if (data.paymentStatus !== 'Confirmed') {
+                data.paymentMethod = 'Cash'; // Default to cash if payment is not confirmed
+                data.transactionID = '';
+            }
+              
+            try {
+                const response = await fetch(`/api/orders/${orderId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message);
+                }
+                  
+                const updatedOrder = await response.json();
+
+                const index = allOrders.findIndex(o => o._id === orderId);
+                if (index !== -1) {
+                    allOrders[index] = updatedOrder;
+                }
+                  
+                renderOrders(allOrders); // Rerender the list with updated data
+                closeActivePopover(); // Close popover if it was open for the edited item
+                closeModal();
+                  
+            } catch (error) {
+                alert(`Error updating order: ${error.message}`);
+            }
+        });
+          
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        window.addEventListener('click', (e) => {
+            // This global click listener is now separate from the one that closes the popover
+            if (e.target === modal) closeModal();
+        });
+
+        // Initialize
+        fetchOrders();
+    </script>
+</body>
+</html>
