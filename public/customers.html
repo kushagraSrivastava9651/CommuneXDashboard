@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Customer Management</title>
+    <link rel="stylesheet" href="/styles/style.css">
+    <style>
+        /* Styles for order modal item list */
+        .order-items-list { border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 1rem; }
+        .order-item-row, .order-item-header { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 10px; padding: 8px 12px; align-items: center; }
+        .order-item-header { font-weight: 600; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+        .order-item-row:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
+        .item-input { width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; }
+        .remove-item-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; }
+        #orderTotal { font-size: 1.2rem; font-weight: bold; margin-top: 1rem; text-align: right; }
+        
+        /* Styles for the radio button group */
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            border-radius: 6px;
+            max-height: 160px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .radio-item label {
+            font-weight: normal;
+            color: #374151;
+        }
+        .radio-item input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+   <nav class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">WX</div>
+            <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+        </div>
+        
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="/home.html" class="nav-link">
+                    <div class="nav-icon">📊</div>
+                    Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/orders.html" class="nav-link">
+                    <div class="nav-icon">📦</div>
+                    Orders
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/customers.html" class="nav-link active">
+                    <div class="nav-icon">👥</div>
+                    Customers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/slots.html" class="nav-link">
+                    <div class="nav-icon">🏢</div>
+                    Slots
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">🔔</div>
+                    Notifications
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <div class="nav-icon">📈</div>
+                    Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/staff.html" class="nav-link">
+                    <div class="nav-icon">👨‍💼</div>
+                    Staff
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Customer Management</h1>
+                <p class="page-subtitle">Manage customer accounts and create bookings</p>
+            </div>
+            <div class="header-actions">
+                <button class="add-button" id="openAddModalBtn">
+                    <span>+</span> Add Customer
+                </button>
+            </div>
+        </header>
+
+        <div class="search-bar">
+            <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search customers by name or phone...">
+            </div>
+        </div>
+
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <span style="margin-left: 12px;">Loading customers...</span>
+        </div>
+        
+        <div class="customer-list" id="customerListContainer" style="display: none;">
+            <div class="list-header">
+                <div>Customer</div>
+                <div>Contact</div>
+                <div>Location</div>
+                <div>Orders</div>
+                <div>Actions</div>
+            </div>
+            <div id="customerList"></div>
+        </div>
+    </main>
+
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add New Customer</h2>
+                <button class="close-button" id="closeModalBtn">&times;</button>
+            </div>
+            <form id="customerForm">
+                <input type="hidden" id="customer-id" name="id">
+                 <div class="form-group"><label class="form-label" for="phone">Phone Number</label><input type="tel" class="form-input" id="phone" name="phone" required></div>
+                <div class="form-group"><label class="form-label" for="customerName">Full Name</label><input type="text" class="form-input" id="customerName" name="customerName" required></div>
+                <div class="form-group">
+                    <label class="form-label">Society</label>
+                    <div id="societySelectionContainer" class="radio-group">
+                        <p style="color: #6b7280; grid-column: 1 / -1;">Loading societies...</p>
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label" for="address">Address (e.g., Flat No, Block)</label><input type="text" class="form-input" id="address" name="address"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">Add Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="orderModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Create New Order for <span id="orderCustomerName"></span></h2>
+                <button class="close-button" id="closeOrderModalBtn">&times;</button>
+            </div>
+            <form id="orderForm">
+                <input type="hidden" id="order-customer-id">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" for="orderType">Order Type</label>
+                        <select class="form-select" id="orderType" name="orderType">
+                            <option value="Standard">Standard</option>
+                            <option value="Express">Express</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="deliveryType">Delivery Type</label>
+                        <select class="form-select" id="deliveryType" name="deliveryType">
+                            <option value="Home Delivery">Home Delivery</option>
+                            <option value="Store Pick-up">Store Pick-up</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label class="form-label" for="orderSource">Order Source</label>
+                        <select class="form-select" id="orderSource" name="orderSource">
+                            <option value="Call">Call</option>
+                            <option value="Walk-in">Walk-in</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr style="margin: 20px 0;">
+                
+                <h3 style="margin-bottom: 10px;">Order Items</h3>
+                <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div style="flex-grow: 1;">
+                        <label class="form-label" for="serviceSelect">Select Service</label>
+                        <select class="form-select" id="serviceSelect">
+                            <option>Loading services...</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-primary" id="addOrderItemBtn" style="height: 42px;">Add Item</button>
+                </div>
+
+                <div class="order-items-list">
+                    <div class="order-item-header">
+                        <div>Service</div>
+                        <div>Price</div>
+                        <div>Qty</div>
+                        <div>Total</div>
+                        <div></div>
+                    </div>
+                    <div id="orderItemsContainer">
+                        </div>
+                </div>
+                <div id="orderTotal">Total Amount: ₹0.00</div>
+                
+                <hr style="margin: 20px 0;">
+                <h3 style="margin-bottom: 10px;">Schedule Pickup (Required)</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" for="pickupDate">Pickup Date</label>
+                        <input type="date" class="form-input" id="pickupDate" name="pickupDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="pickupSlot">Pickup Slot</label>
+                        <select class="form-select" id="pickupSlot" name="pickupSlot" required>
+                            <option value="">-- Select Slot --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="pickupAgent">Pickup Agent</label>
+                        <select class="form-select" id="pickupAgent" name="pickupAgent">
+                             <option value="">-- Assign Later --</option>
+                        </select>
+                        <small>Assigning sets status to "Pick-up Pending".</small>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn-secondary" id="cancelOrderBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submitOrderBtn">Create Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // =================================================================
+        //                 STATE AND DOM ELEMENTS
+        // =================================================================
+        let currentCustomerList = [];
+        let availableServices = [];
+        let availableSlots = [];
+        let availableAgents = [];
+        let currentOrderItems = []; 
+
+        const customerModal = document.getElementById('customerModal');
+        const customerForm = document.getElementById('customerForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const submitBtn = document.getElementById('submitBtn');
+        const customerIdInput = document.getElementById('customer-id');
+        const orderModal = document.getElementById('orderModal');
+        const orderForm = document.getElementById('orderForm');
+        const searchInput = document.getElementById('searchInput');
+
+        // =================================================================
+        //                 DYNAMIC DATA POPULATION
+        // =================================================================
+        const populateSchedulingDropdowns = () => {
+            const pickupSlotSelect = document.getElementById('pickupSlot');
+            const pickupAgentSelect = document.getElementById('pickupAgent');
+
+            pickupSlotSelect.innerHTML = '<option value="" disabled selected>-- Select Slot --</option>';
+            const pickupSlots = availableSlots.filter(slot => slot.slotType === 'Pickup');
+            pickupSlots.forEach(slot => {
+                pickupSlotSelect.innerHTML += `<option value="${slot._id}">${slot.slotName}</option>`;
+            });
+
+            pickupAgentSelect.innerHTML = '<option value="">-- Assign Later --</option>';
+            const pickupAgents = availableAgents.filter(agent => agent.role.role_name === 'Pickup Agent');
+            pickupAgents.forEach(agent => {
+                pickupAgentSelect.innerHTML += `<option value="${agent._id}">${agent.name}</option>`;
+            });
+        };
+
+        // =================================================================
+        //                   CUSTOMER LIST RENDERING
+        // =================================================================
+        function renderCustomerList(data = currentCustomerList) {
+            const customerListDiv = document.getElementById('customerList');
+            if (data.length === 0) {
+                customerListDiv.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px;"><h3>No customers found.</h3><p>Click "Add Customer" to get started.</p></div>`;
+                return;
+            }
+
+            customerListDiv.innerHTML = data.map((customer) => {
+                const societyName = customer.society ? customer.society.name : 'N/A';
+                const memberSince = new Date(customer.createdAt || Date.now()).toLocaleDateString("en-IN");
+                const initials = (customer.customerName || '').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+
+                return `
+                <div class="list-row">
+                    <div class="customer-cell">
+                        <div class="avatar">${initials}</div>
+                        <div>
+                            <strong>${customer.customerName}</strong>
+                            <small>Member since ${memberSince}</small>
+                        </div>
+                    </div>
+                    <div class="contact-cell"><span>📞 ${customer.phone || 'N/A'}</span></div>
+                    <div class="location-cell">
+                        <strong>${societyName}</strong>
+                        <small>${customer.address || 'N/A'}</small>
+                    </div>
+                    <div class="orders-cell">0 orders</div>
+                    <div class="actions-cell">
+                        <a href="#" onclick="openOrderModal('${customer._id}')" class="action-link" style="color: #3b82f6;">📖 Book</a>
+                        <a href="#" onclick="openModalForEdit('${customer._id}')" class="action-link">✏️ Edit</a>
+                        <a href="#" onclick="deleteCustomer('${customer._id}')" class="action-link" style="color: #ef4444;">🗑️ Delete</a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        // =================================================================
+        //                 FETCH & DELETE OPERATIONS
+        // =================================================================
+        window.deleteCustomer = async (id) => {
+            if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) return;
+            try {
+                const response = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+                await initializePage(); // Refetch all data to update the list
+            } catch (error) {
+                alert(`Error deleting customer: ${error.message}`);
+            }
+        };
+
+        // =================================================================
+        //                   CUSTOMER MODAL HANDLING
+        // =================================================================
+        function openModalForAdd() {
+            customerForm.reset();
+            customerIdInput.value = '';
+            modalTitle.textContent = 'Add New Customer';
+            submitBtn.textContent = 'Add Customer';
+            customerModal.style.display = 'block';
+        }
+
+        window.openModalForEdit = (id) => {
+            const customer = currentCustomerList.find(c => c._id === id);
+            if (!customer) return;
+            
+            customerForm.reset();
+            modalTitle.textContent = 'Edit Customer Details';
+            submitBtn.textContent = 'Save Changes';
+            
+            customerIdInput.value = customer._id;
+            document.getElementById('customerName').value = customer.customerName;
+            document.getElementById('phone').value = customer.phone || '';
+            document.getElementById('address').value = customer.address || '';
+            
+            if (customer.society && customer.society._id) {
+                const societyRadio = document.querySelector(`input[name="society"][value="${customer.society._id}"]`);
+                if (societyRadio) {
+                    societyRadio.checked = true;
+                }
+            }
+            
+            customerModal.style.display = 'block';
+        };
+
+        function closeModal() {
+            customerModal.style.display = 'none';
+        }
+        
+        // =================================================================
+        //                   ORDER MODAL HANDLING
+        // =================================================================
+        window.openOrderModal = (id) => {
+            const customer = currentCustomerList.find(c => c._id === id);
+            if (!customer) return;
+            
+            orderForm.reset();
+            currentOrderItems = [];
+            renderOrderItems();
+
+            document.getElementById('order-customer-id').value = customer._id;
+            document.getElementById('orderCustomerName').textContent = customer.customerName;
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('pickupDate').setAttribute('min', today);
+            
+            orderModal.style.display = 'block';
+        };
+
+        function closeOrderModal() {
+            orderModal.style.display = 'none';
+        }
+
+        function renderOrderItems() {
+            const container = document.getElementById('orderItemsContainer');
+            const orderType = document.getElementById('orderType').value;
+
+            if(currentOrderItems.length === 0){
+                container.innerHTML = `<div style="text-align: center; padding: 20px; color: #6b7280;">No items added yet.</div>`;
+            } else {
+                 container.innerHTML = currentOrderItems.map((item, index) => {
+                    const price = orderType === 'Express' && item.service.expressPrice ? item.service.expressPrice : item.service.standardPrice;
+                    const total = price * item.quantity;
+                    return `
+                    <div class="order-item-row" data-index="${index}">
+                        <div>${item.service.serviceName}</div>
+                        <div>₹${price.toFixed(2)}</div>
+                        <div><input type="number" value="${item.quantity}" min="1" class="item-input item-quantity"></div>
+                        <div><strong>₹${total.toFixed(2)}</strong></div>
+                        <div><button type="button" class="remove-item-btn">×</button></div>
+                    </div>`;
+                }).join('');
+            }
+            updateOrderTotal();
+        }
+
+        function updateOrderTotal() {
+            const orderType = document.getElementById('orderType').value;
+            const total = currentOrderItems.reduce((acc, item) => {
+                const price = orderType === 'Express' && item.service.expressPrice ? item.service.expressPrice : item.service.standardPrice;
+                return acc + (price * item.quantity);
+            }, 0);
+            document.getElementById('orderTotal').textContent = `Total Amount: ₹${total.toFixed(2)}`;
+        }
+
+        // =================================================================
+        //                   FORM SUBMISSION
+        // =================================================================
+        customerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            const id = data.id;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/customers/${id}` : '/api/customers';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+                
+                closeModal();
+                await initializePage(); // Refetch data
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+        
+        orderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const orderType = document.getElementById('orderType').value;
+            
+            const orderData = {
+                customerID: document.getElementById('order-customer-id').value,
+                orderType: orderType,
+                deliveryType: document.getElementById('deliveryType').value,
+                orderSource: document.getElementById('orderSource').value,
+                pickupDate: document.getElementById('pickupDate').value,
+                pickupSlot: document.getElementById('pickupSlot').value,
+                pickupAgent: document.getElementById('pickupAgent').value || null, // Send null if empty
+                items: currentOrderItems.map(item => ({
+                    serviceID: item.service._id,
+                    quantity: item.quantity,
+                    basePrice: orderType === 'Express' && item.service.expressPrice ? item.service.expressPrice : item.service.standardPrice,
+                })),
+                billAmount: currentOrderItems.reduce((acc, item) => {
+                    const price = orderType === 'Express' && item.service.expressPrice ? item.service.expressPrice : item.service.standardPrice;
+                    return acc + (price * item.quantity);
+                }, 0)
+            };
+            
+            if (!orderData.pickupAgent) {
+                delete orderData.pickupAgent; // Remove key entirely if no agent is selected
+            }
+            
+            if (orderData.items.length === 0) {
+                alert('Please add at least one service to the order.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+                alert('Order created successfully! You will now be redirected to the orders page.');
+                closeOrderModal();
+                window.location.href = '/orders.html';
+            } catch (error) {
+                alert(`Error creating order: ${error.message}`);
+            }
+        });
+
+        // =================================================================
+        //                   EVENT LISTENERS & INITIALIZATION
+        // =================================================================
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = currentCustomerList.filter(customer =>
+                customer.customerName.toLowerCase().includes(searchTerm) ||
+                (customer.phone && customer.phone.includes(searchTerm))
+            );
+            renderCustomerList(filteredData);
+        });
+
+        document.getElementById('openAddModalBtn').addEventListener('click', openModalForAdd);
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        document.getElementById('closeOrderModalBtn').addEventListener('click', closeOrderModal);
+        document.getElementById('cancelOrderBtn').addEventListener('click', closeOrderModal);
+        
+        document.getElementById('addOrderItemBtn').addEventListener('click', () => {
+            const serviceId = document.getElementById('serviceSelect').value;
+            if (!serviceId) return;
+
+            const existingItem = currentOrderItems.find(item => item.service._id === serviceId);
+            if(existingItem) {
+                existingItem.quantity++;
+            } else {
+                const service = availableServices.find(s => s._id === serviceId);
+                currentOrderItems.push({ service, quantity: 1 });
+            }
+            renderOrderItems();
+        });
+
+        document.getElementById('orderItemsContainer').addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-item-btn')) {
+                const index = e.target.closest('.order-item-row').dataset.index;
+                currentOrderItems.splice(index, 1);
+                renderOrderItems();
+            }
+        });
+
+        document.getElementById('orderItemsContainer').addEventListener('change', (e) => {
+            if (e.target.classList.contains('item-quantity')) {
+                const index = e.target.closest('.order-item-row').dataset.index;
+                const newQuantity = parseInt(e.target.value, 10);
+                if (newQuantity > 0) {
+                    currentOrderItems[index].quantity = newQuantity;
+                    renderOrderItems();
+                }
+            }
+        });
+
+        document.getElementById('orderType').addEventListener('change', renderOrderItems);
+
+        window.addEventListener('click', (e) => {
+            if (e.target === customerModal) closeModal();
+            if (e.target === orderModal) closeOrderModal();
+        });
+
+        async function initializePage() {
+            try {
+                document.getElementById('loadingState').style.display = 'flex';
+                document.getElementById('customerListContainer').style.display = 'none';
+
+                const [socRes, custRes, servRes, slotsRes, agentsRes] = await Promise.all([
+                    fetch('/api/societies'),
+                    fetch('/api/customers'),
+                    fetch('/api/services'),
+                    fetch('/api/slots'),
+                    fetch('/api/staff/agents')
+                ]);
+
+                // Societies
+                const societies = await socRes.json();
+                const societyContainer = document.getElementById('societySelectionContainer');
+                societyContainer.innerHTML = societies.map((society, index) => `
+                    <div class="radio-item">
+                        <input type="radio" id="society-${society._id}" name="society" value="${society._id}" ${index === 0 ? 'required' : ''}>
+                        <label for="society-${society._id}">${society.name}</label>
+                    </div>`).join('');
+
+                // Customers
+                currentCustomerList = await custRes.json();
+                renderCustomerList();
+                
+                // Services
+                availableServices = await servRes.json();
+                const serviceDropdown = document.getElementById('serviceSelect');
+                serviceDropdown.innerHTML = '<option value="" disabled selected>-- Select a Service --</option>';
+                availableServices.forEach(service => {
+                    serviceDropdown.innerHTML += `<option value="${service._id}">${service.serviceName} (₹${service.standardPrice}/${service.unitType})</option>`;
+                });
+
+                // Slots & Agents
+                availableSlots = await slotsRes.json();
+                availableAgents = await agentsRes.json();
+                populateSchedulingDropdowns();
+
+            } catch (error) {
+                 console.error('Failed to initialize page:', error);
+                document.getElementById('loadingState').innerHTML = `<div class="empty-state"><h3>⚠️ Error</h3><p>Could not load page data. Please refresh.</p></div>`;
+            } finally {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('customerListContainer').style.display = 'block';
+            }
+        }
+
+        initializePage();
+    </script>
+</body>
+</html>
