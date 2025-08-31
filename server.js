@@ -72,17 +72,31 @@ const customerSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+
 const serviceSchema = new mongoose.Schema({
-    serviceName: { type: String, required: true },
-    standardTAT: { type: String, required: true },
-    standardPrice: { type: Number, required: true },
-    expressTAT: { type: String },
-    expressPrice: { type: Number },
-    unitType: {
+    categoryName: {
         type: String,
         required: true,
-        enum: ['Piece', 'Pair', 'Kg']
-    }
+        unique: true
+    },
+    pricingModel: {
+        type: String,
+        required: true,
+        enum: ['PerKg', 'PerItem', 'PerPair']
+    },
+    pricePerKg: {
+        type: Number,
+        required: function() { return this.pricingModel === 'PerKg'; }
+    },
+    pricePerPair: {
+        type: Number,
+        required: function() { return this.pricingModel === 'PerPair'; }
+    },
+    subcategories: [{
+        itemName: { type: String, required: true },
+        price: { type: Number, required: true }
+    }],
+    standardTAT: { type: String, required: true }
 });
 
 const slotSchema = new mongoose.Schema({
@@ -91,22 +105,29 @@ const slotSchema = new mongoose.Schema({
     maxCapacity: { type: Number, default: 5, min: 1 }
 });
 
-// ================= MODIFIED SCHEMA =================
+// ============================ MODIFIED SCHEMA ============================
 const orderSchema = new mongoose.Schema({
     customerID: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
-    orderSource: { type: String, enum: [ 'Call', 'Walk-in'], default: 'Call' },
-    orderType: { type: String, enum: ['Standard', 'Express'], default: 'Standard' },
+    orderSource: { type: String, enum: ['Call', 'Walk-in'], default: 'Call' },
     deliveryType: { type: String, enum: ['Store Pick-up', 'Home Delivery'], default: 'Home Delivery' },
     items: [{
-        serviceID: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
-        quantity: { type: Number, required: true, min: 1 },
-        basePrice: { type: Number, required: true }
+        serviceCategoryID: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+        weightInKg: { type: Number, min: 0 },
+        pairCount: { type: Number, min: 0 },
+        pricePerKg: { type: Number }, // ADDED: To store the price for this specific order item
+        pricePerPair: { type: Number },// ADDED: To store the price for this specific order item
+        subItems: [{
+            itemName: { type: String, required: true },
+            quantity: { type: Number, required: true, min: 1 },
+            pricePerItem: { type: Number, required: true }
+        }],
+        itemTotal: { type: Number, required: true }
     }],
     billAmount: { type: Number, required: true },
     orderStatus: {
         type: String,
-        enum: ['New', 'Cancelled', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered', 'Collection Pending', 'Collected'],
-        default: 'New' // Default to 'New'
+        enum: ['New', 'Cancelled', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered'],
+        default: 'New'
     },
     paymentStatus: { type: String, enum: ['Pending', 'Confirmed'], default: 'Pending' },
     paymentMethod: { type: String, enum: ['Cash', 'Credit-Card', 'Debit-Card', 'UPI'], default: 'Cash' },
@@ -114,13 +135,12 @@ const orderSchema = new mongoose.Schema({
     pickupDate: { type: Date, required: true },
     pickupSlot: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot', required: true },
     pickupAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
-    pickupAgentName: { type: String }, // <-- ADDED
+    pickupAgentName: { type: String },
     deliveryDate: { type: Date },
     deliverySlot: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot' },
     deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
-    deliveryAgentName: { type: String } // <-- ADDED
+    deliveryAgentName: { type: String }
 }, { timestamps: { createdAt: 'orderedOn' } });
-// ============= END OF MODIFIED SCHEMA ==============
 
 
 const User = mongoose.model('User', userSchema);
@@ -149,7 +169,7 @@ async function seedRoles() {
 
 async function seedSocieties() {
     try {
-        const societies = ["ASBL Springs", "ASBL Spire", "Asbl landmark", "Asbl Gooff","Others"];
+        const societies = ["ASBL Springs", "ASBL Spire", "Asbl landmark", "Asbl Gooff", "Others"];
         for (let societyName of societies) {
             if (!(await Society.findOne({ name: societyName }))) {
                 await Society.create({ name: societyName });
@@ -161,20 +181,67 @@ async function seedSocieties() {
 
 async function seedServices() {
     try {
-        if (await Service.countDocuments() > 0) return;
-        const services = [
-            { serviceName: 'T-Shirt Wash & Iron', standardTAT: '48 Hours', standardPrice: 25, expressTAT: '24 Hours', expressPrice: 40, unitType: 'Piece'},
-            { serviceName: 'Jeans Wash & Iron', standardTAT: '48 Hours', standardPrice: 40, expressTAT: '24 Hours', expressPrice: 60, unitType: 'Piece'},
-            { serviceName: 'Shirt Wash & Iron', standardTAT: '48 Hours', standardPrice: 30, expressTAT: '24 Hours', expressPrice: 50, unitType: 'Piece'},
-            { serviceName: 'Saree Dry Clean', standardTAT: '72 Hours', standardPrice: 150, expressTAT: '36 Hours', expressPrice: 250, unitType: 'Piece'},
-            { serviceName: 'Bulk Wash (per Kg)', standardTAT: '48 Hours', standardPrice: 80, unitType: 'Kg'}
+        const servicesData = [
+            { categoryName: 'Wash & Fold', pricingModel: 'PerKg', pricePerKg: 80, standardTAT: '48 Hours' },
+            { categoryName: 'Wash & Iron', pricingModel: 'PerKg', pricePerKg: 100, standardTAT: '48 Hours' },
+            {
+                categoryName: 'Ironing Only',
+                pricingModel: 'PerItem',
+                subcategories: [
+                    { itemName: 'Shirt', price: 20 },
+                    { itemName: 'T-Shirt', price: 15 },
+                    { itemName: 'Pants / Trousers', price: 25 },
+                    { itemName: 'Jeans', price: 30 },
+                    { itemName: 'Others', price: 20 }
+                ],
+                standardTAT: '24 Hours'
+            },
+            {
+                categoryName: 'Dry Cleaning',
+                pricingModel: 'PerItem',
+                subcategories: [
+                    { itemName: 'Kurta / Kurti', price: 80 },
+                    { itemName: 'Saree (Plain)', price: 150 },
+                    { itemName: 'Blazer / Coat', price: 200 },
+                    { itemName: 'Sherwani', price: 350 },
+                    { itemName: 'Lehenga', price: 400 },
+                    { itemName: 'Others', price: 100 }
+                ],
+                standardTAT: '72 Hours'
+            },
+            { categoryName: 'Shoes & Footwear', pricingModel: 'PerPair', pricePerPair: 120, standardTAT: '72 Hours' }
         ];
-        await Service.insertMany(services);
-        console.log('✅ Default services seeded.');
+
+        for (const service of servicesData) {
+            const existingService = await Service.findOne({ categoryName: service.categoryName });
+
+            if (!existingService) {
+                await Service.create(service);
+                console.log(`✅ Service '${service.categoryName}' seeded.`);
+            } else {
+                let needsUpdate = false;
+                if (service.pricingModel === 'PerItem') {
+                    const hasOthers = existingService.subcategories.some(sub => sub.itemName === 'Others');
+                    if (!hasOthers) {
+                        const othersSubCategory = service.subcategories.find(sub => sub.itemName === 'Others');
+                        if (othersSubCategory) {
+                           existingService.subcategories.push(othersSubCategory);
+                           needsUpdate = true;
+                        }
+                    }
+                }
+                if (needsUpdate) {
+                    await existingService.save();
+                    console.log(`🔄 Service '${service.categoryName}' updated with 'Others' subcategory.`);
+                }
+            }
+        }
+        console.log('✅ Service seeding/verification complete.');
     } catch (error) {
-         console.error("❌ Error seeding services:", error);
+        console.error("❌ Error seeding services:", error);
     }
 }
+
 
 async function seedSlots() {
     try {
@@ -188,7 +255,7 @@ async function seedSlots() {
             { slotName: '4 PM - 7 PM', slotType: 'Delivery', maxCapacity: 5 },
         ];
         await Slot.insertMany(slots);
-        console.log('✅ Default slots seeded with new timings and capacity.');
+        console.log('✅ Default slots seeded.');
     } catch (error) {
         console.error("❌ Error seeding slots:", error);
     }
@@ -354,10 +421,65 @@ app.get('/api/staff/agents', async (req, res) => {
 // =================================================================
 //                      CUSTOMER MANAGEMENT ROUTES
 // =================================================================
+
 app.get('/api/customers', async (req, res) => {
-    try { res.json(await Customer.find({}).populate('society')); }
-    catch (error) { res.status(500).json({ message: 'Server error fetching customers.' }); }
+    try {
+        const orderStats = await Order.aggregate([
+            {
+                $group: {
+                    _id: '$customerID',
+                    orderCount: { $sum: 1 },
+                    totalSpent: { $sum: '$billAmount' }
+                }
+            }
+        ]);
+
+        const statsMap = orderStats.reduce((acc, stat) => {
+            acc[stat._id.toString()] = {
+                orderCount: stat.orderCount,
+                totalSpent: stat.totalSpent
+            };
+            return acc;
+        }, {});
+
+        const customers = await Customer.find({}).populate('society').lean();
+
+        const customersWithStats = customers.map(customer => {
+            const stats = statsMap[customer._id.toString()];
+            return {
+                ...customer,
+                orderCount: stats ? stats.orderCount : 0,
+                totalSpent: stats ? stats.totalSpent : 0
+            };
+        });
+
+        res.json(customersWithStats);
+
+    } catch (error) {
+        console.error("Error fetching customers with stats:", error);
+        res.status(500).json({ message: 'Server error fetching customers.' });
+    }
 });
+
+app.get('/api/customers/:id/orders', async (req, res) => {
+    try {
+        const customerId = req.params.id;
+        const orders = await Order.find({ customerID: customerId })
+            .select('orderedOn billAmount orderStatus items')
+            .populate('items.serviceCategoryID', 'categoryName')
+            .sort({ orderedOn: -1 });
+
+        if (!orders) {
+            return res.json([]);
+        }
+        res.json(orders);
+    } catch (error) {
+        console.error("Error fetching customer orders:", error);
+        res.status(500).json({ message: 'Server error fetching customer orders.' });
+    }
+});
+
+
 app.post('/api/customers', async (req, res) => {
     try {
         const newCustomer = new Customer(req.body);
@@ -397,15 +519,39 @@ app.get('/api/services', async (req, res) => {
     }
 });
 
+app.put('/api/services/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        if (!updateData) {
+            return res.status(400).json({ message: 'Invalid update data provided.' });
+        }
+
+        const updatedService = await Service.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+
+        if (!updatedService) {
+            return res.status(404).json({ message: 'Service not found.' });
+        }
+
+        res.json(updatedService);
+
+    } catch (error) {
+        console.error('Error updating service:', error);
+        res.status(500).json({ message: 'Error updating service.' });
+    }
+});
+
+
 app.get('/api/orders', async (req, res) => {
     try {
         const orders = await Order.find({})
             .populate({
                 path: 'customerID',
-                select: 'customerName phone society address', // Added phone and address
+                select: 'customerName phone society address',
                 populate: { path: 'society', model: 'Society', select: 'name' }
             })
-            .populate('items.serviceID', 'serviceName')
+            .populate('items.serviceCategoryID', 'categoryName pricingModel')
             .populate('pickupSlot deliverySlot', 'slotName')
             .sort({ orderedOn: -1 });
         res.json(orders);
@@ -422,7 +568,7 @@ app.get('/api/orders/:id', async (req, res) => {
                 path: 'customerID',
                 populate: { path: 'society', model: 'Society' }
             })
-            .populate('items.serviceID')
+            .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot')
             .populate('pickupAgent deliveryAgent');
 
@@ -434,57 +580,113 @@ app.get('/api/orders/:id', async (req, res) => {
     }
 });
 
-// ================= MODIFIED ROUTE =================
+// ============================ MODIFIED ROUTE ============================
 app.post('/api/orders', async (req, res) => {
-    try {
-        const { items, pickupDate, pickupSlot, pickupAgent } = req.body;
+    const { items, pickupDate, pickupSlot, pickupAgent, billAmount: clientBillAmount } = req.body;
 
+    try {
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'Order must contain at least one item.' });
         }
 
-        // Check slot availability
+        // Slot validation... (no changes here)
         const slot = await Slot.findById(pickupSlot);
         if (!slot) return res.status(400).json({ message: 'Invalid pickup slot selected.' });
-        
         const targetDate = new Date(pickupDate);
         const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
         const endDate = new Date(startDate);
         endDate.setUTCDate(startDate.getUTCDate() + 1);
-
-        const pickupCount = await Order.countDocuments({ 
+        const pickupCount = await Order.countDocuments({
             pickupSlot: pickupSlot,
             pickupDate: { $gte: startDate, $lt: endDate }
         });
-
         if (pickupCount >= slot.maxCapacity) {
             return res.status(400).json({ message: `Pickup slot for this date is full (limit: ${slot.maxCapacity}). Please choose another.` });
         }
 
+        let serverCalculatedBill = 0;
+        const processedItems = [];
+
+        for (const item of items) {
+            const service = await Service.findById(item.serviceCategoryID);
+            if (!service) return res.status(400).json({ message: `Invalid service category ID: ${item.serviceCategoryID}` });
+
+            let currentItemTotal = 0;
+            const processedItem = { serviceCategoryID: service._id };
+
+            switch (service.pricingModel) {
+                case 'PerKg':
+                    if (!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({ message: 'Invalid weight for PerKg service.' });
+                    if (typeof item.pricePerKg !== 'number' || item.pricePerKg < 0) return res.status(400).json({ message: `A valid price for ${service.categoryName} is required.` });
+                    
+                    currentItemTotal = item.weightInKg * item.pricePerKg; // Use client-provided price
+                    processedItem.weightInKg = item.weightInKg;
+                    processedItem.pricePerKg = item.pricePerKg; // Store client-provided price
+                    break;
+
+                case 'PerPair':
+                    if (!item.pairCount || item.pairCount <= 0) return res.status(400).json({ message: 'Invalid pair count for PerPair service.' });
+                     if (typeof item.pricePerPair !== 'number' || item.pricePerPair < 0) return res.status(400).json({ message: `A valid price for ${service.categoryName} is required.` });
+
+                    currentItemTotal = item.pairCount * item.pricePerPair; // Use client-provided price
+                    processedItem.pairCount = item.pairCount;
+                    processedItem.pricePerPair = item.pricePerPair; // Store client-provided price
+                    break;
+
+                case 'PerItem':
+                    if (!item.subItems || item.subItems.length === 0) return res.status(400).json({ message: 'No sub-items provided for PerItem service.' });
+                    processedItem.subItems = [];
+                    for (const sub of item.subItems) {
+                        const serviceSubItemExists = service.subcategories.some(s => s.itemName === sub.itemName);
+                        if (!serviceSubItemExists) return res.status(400).json({ message: `Invalid sub-item name: ${sub.itemName}` });
+                        if (!sub.quantity || sub.quantity <= 0) return res.status(400).json({ message: `Quantity for ${sub.itemName} must be a positive number.` });
+                        if (typeof sub.pricePerItem !== 'number' || sub.pricePerItem < 0) return res.status(400).json({ message: `Invalid price provided for ${sub.itemName}.` });
+                        
+                        currentItemTotal += sub.quantity * sub.pricePerItem;
+                        processedItem.subItems.push({
+                            itemName: sub.itemName,
+                            quantity: sub.quantity,
+                            pricePerItem: sub.pricePerItem
+                        });
+                    }
+                    break;
+                default:
+                    return res.status(400).json({ message: 'Unknown pricing model.' });
+            }
+              
+            processedItem.itemTotal = currentItemTotal;
+            processedItems.push(processedItem);
+            serverCalculatedBill += currentItemTotal;
+        }
+
+        if (Math.abs(serverCalculatedBill - clientBillAmount) > 0.01) {
+            return res.status(400).json({ message: `Bill amount mismatch. Client: ${clientBillAmount}, Server: ${serverCalculatedBill}. Please refresh and try again.` });
+        }
+
         const newOrderData = { ...req.body };
-        
-        // Handle pickup agent assignment and status
+        newOrderData.items = processedItems;
+        newOrderData.billAmount = serverCalculatedBill;
+
         if (pickupAgent) {
             const agent = await Staff.findById(pickupAgent);
             if (agent) {
                 newOrderData.pickupAgentName = agent.name;
-                newOrderData.orderStatus = 'Pick-up Pending'; // Set status if agent is assigned
+                newOrderData.orderStatus = 'Pick-up Pending';
             }
         } else {
-            newOrderData.orderStatus = 'New'; // Set status to 'New' if no agent
+            newOrderData.orderStatus = 'New';
         }
 
         const newOrder = new Order(newOrderData);
         await newOrder.save();
-        
-        // Populate the new order to send back a complete object
+
         const populatedOrder = await Order.findById(newOrder._id)
             .populate({
                 path: 'customerID',
                 select: 'customerName society',
                 populate: { path: 'society', model: 'Society', select: 'name' }
             })
-            .populate('items.serviceID', 'serviceName')
+            .populate('items.serviceCategoryID', 'categoryName')
             .populate('pickupSlot deliverySlot', 'slotName');
 
         res.status(201).json(populatedOrder);
@@ -495,33 +697,27 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-// ================= MODIFIED ROUTE =================
+
 app.put('/api/orders/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
         const updateData = { ...req.body };
 
-        // Check and validate pickup slot change
-        if (updateData.pickupDate && updateData.pickupSlot) {
-            // ... (slot validation logic remains the same)
-        }
-        
-        // Check and validate delivery slot change
-        if (updateData.deliveryDate && updateData.deliverySlot) {
-            // ... (slot validation logic remains the same)
-        }
-        
-        // === NEW LOGIC: Save agent name on assignment ===
         if (updateData.pickupAgent) {
             const agent = await Staff.findById(updateData.pickupAgent);
             if(agent) updateData.pickupAgentName = agent.name;
+            else {
+               updateData.pickupAgentName = null;
+            }
         }
 
         if (updateData.deliveryAgent) {
             const agent = await Staff.findById(updateData.deliveryAgent);
             if(agent) updateData.deliveryAgentName = agent.name;
+            else {
+               updateData.deliveryAgentName = null;
+            }
         }
-        // === END OF NEW LOGIC ===
 
         const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true });
         if (!updatedOrder) return res.status(404).json({ message: 'Order not found.' });
@@ -532,7 +728,7 @@ app.put('/api/orders/:id', async (req, res) => {
                 select: 'customerName phone society address',
                 populate: { path: 'society', model: 'Society', select: 'name' }
             })
-            .populate('items.serviceID', 'serviceName')
+            .populate('items.serviceCategoryID', 'categoryName pricingModel')
             .populate('pickupSlot deliverySlot', 'slotName');
 
         res.json(populatedOrder);
@@ -543,18 +739,13 @@ app.put('/api/orders/:id', async (req, res) => {
 });
 
 // =================================================================
-//                 DASHBOARD API ROUTE (Replace the old one)
+//                 DASHBOARD API ROUTE
 // =================================================================
 app.get('/api/dashboard/stats', async (req, res) => {
     try {
         const { startDate: startStr, endDate: endStr } = req.query;
-
-        // --- Robust Date Parsing ---
-        // This new logic avoids timezone issues by treating date strings as UTC.
-
         let endDate, startDate;
 
-        // Parse end date string or default to the end of today (in UTC)
         if (endStr) {
             const [year, month, day] = endStr.split('-').map(Number);
             endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
@@ -562,21 +753,16 @@ app.get('/api/dashboard/stats', async (req, res) => {
             endDate = new Date();
             endDate = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), 23, 59, 59, 999));
         }
-
-        // Parse start date string or default based on the end date
         if (startStr) {
             const [year, month, day] = startStr.split('-').map(Number);
             startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
         } else {
-            // Default to 7 days before the end date if start is not provided
             startDate = new Date(endDate);
             startDate.setUTCDate(startDate.getUTCDate() - 6);
             startDate.setUTCHours(0, 0, 0, 0);
         }
 
         const dateFilter = { orderedOn: { $gte: startDate, $lte: endDate } };
-
-        // --- All other calculations remain the same ---
         const totalOrders = await Order.countDocuments(dateFilter);
 
         const revenueData = await Order.aggregate([
@@ -586,15 +772,12 @@ app.get('/api/dashboard/stats', async (req, res) => {
         const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
 
         const activeCustomers = await Order.distinct('customerID', dateFilter);
-        
         const societiesData = await Customer.find({ _id: { $in: activeCustomers } }).populate('society');
         const activeSocieties = new Set(societiesData.map(c => c.society?.name).filter(Boolean));
-        
         const orderStatusBreakdown = await Order.aggregate([
             { $match: dateFilter },
             { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
         ]);
-
         const recentOrders = await Order.find(dateFilter)
             .sort({ orderedOn: -1 })
             .limit(5)
@@ -612,7 +795,6 @@ app.get('/api/dashboard/stats', async (req, res) => {
             orderStatusBreakdown,
             recentOrders
         });
-
     } catch (error) {
         console.error("Error fetching dashboard stats:", error);
         res.status(500).json({ message: 'Server error fetching dashboard stats.' });
