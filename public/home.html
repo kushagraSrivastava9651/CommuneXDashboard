@@ -36,20 +36,49 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* ADDED: Styles for the logout button */
+        .sidebar { display: flex; flex-direction: column; justify-content: space-between; }
+        .sidebar-footer {
+            padding: 10px 15px;
+            border-top: 1px solid #374151; /* Optional: adds a nice separator */
+        }
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+        .logout-link .nav-icon { margin-right: 12px; }
+        .logout-link:hover {
+            background-color: #be123c; /* A distinct red color for logout action */
+            color: #fff;
+        }
     </style>
 </head>
-<body> 
+<body>
     <nav class="sidebar">
-        <div class="logo"><div class="logo-icon">WX</div><div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div></div>
-        <ul class="nav-menu">
-            <li class="nav-item"><a href="/home.html" class="nav-link active"><div class="nav-icon">📊</div>Dashboard</a></li>
-            <li class="nav-item"><a href="/orders.html" class="nav-link"><div class="nav-icon">📦</div>Orders</a></li>
-            <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
-            <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
-            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
-            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
-            <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
-        </ul>
+        <div>
+            <div class="logo"><div class="logo-icon">WX</div><div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link active"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link"><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🗓️</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
     </nav>
 
     <main class="main-content">
@@ -127,7 +156,13 @@
                 loadingOverlay.classList.add('visible');
                 try {
                     const response = await fetch(`/api/dashboard/stats?startDate=${startDate}&endDate=${endDate}`);
-                    if (!response.ok) throw new Error('Network response was not ok');
+                    
+                    if (response.status === 401) {
+                        window.location.href = '/'; // Redirect to login if session is invalid
+                        return;
+                    }
+                    if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+
                     const stats = await response.json();
                     
                     renderStats(stats);
@@ -135,12 +170,12 @@
                     renderRecentOrders(stats.recentOrders);
                 } catch (error) {
                     console.error('Error loading dashboard:', error);
-                    alert('Failed to load dashboard data. Please try again.');
+                    alert('Failed to load dashboard data. Please check your connection and try again.');
                 } finally {
                     loadingOverlay.classList.remove('visible');
                 }
             };
-
+            
             const renderStats = (stats) => {
                 document.getElementById('totalOrdersStat').textContent = stats.totalOrders;
                 document.getElementById('totalRevenueStat').textContent = `₹${stats.totalRevenue.toLocaleString('en-IN')}`;
@@ -157,7 +192,7 @@
                 container.innerHTML = orders.map(order => {
                     const customerName = order.customerID?.customerName || 'N/A';
                     const societyName = order.customerID?.society?.name || 'N/A';
-                    const statusClass = order.orderStatus.toLowerCase().replace(/ /g, '-').replace('pick-up-', '');
+                    const statusClass = (order.orderStatus || '').toLowerCase().replace(/ /g, '-').replace('pick-up-', '');
                     return `
                     <div class="order-item">
                         <div class="order-info">
@@ -176,12 +211,12 @@
                 const ctx = document.getElementById('orderStatusChart').getContext('2d');
                 const statusMap = breakdown.reduce((acc, item) => ({ ...acc, [item._id]: item.count }), {});
                 
-                const labels = ['New', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered', 'Collected', 'Cancelled'];
+                const labels = ['New', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered', 'Cancelled'];
                 const data = labels.map(label => statusMap[label] || 0);
 
                 const statusColors = {
                     'New': '#3b82f6', 'Pick-up Pending': '#f59e0b', 'In-Progress': '#8b5cf6',
-                    'Delivery Pending': '#facc15', 'Delivered': '#22c55e', 'Collected': '#10b981', 'Cancelled': '#ef4444'
+                    'Delivery Pending': '#facc15', 'Delivered': '#22c55e', 'Cancelled': '#ef4444'
                 };
                 
                 if (orderStatusChart) orderStatusChart.destroy();
@@ -214,6 +249,8 @@
                 button.addEventListener('click', () => {
                     dateButtons.forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
+                    startDateInput.value = ''; // Clear date inputs when a preset button is clicked
+                    endDateInput.value = '';
                     const days = button.dataset.days;
                     fetchAndRenderDashboard(getStartDate(days), formatDate(new Date()));
                 });
@@ -239,6 +276,7 @@
             }));
 
             // --- INITIAL LOAD ---
+            // FIXED: Changed 'new date()' to 'new Date()' to correct the typo and enable initial data fetch.
             fetchAndRenderDashboard(getStartDate(7), formatDate(new Date()));
         });
     </script>

@@ -73,59 +73,88 @@
         }
         .update-btn:hover { background-color: #4338ca; }
         .update-btn.success { background-color: #22c55e; }
+
+        /* ADDED: Styles for the logout button */
+        .sidebar { display: flex; flex-direction: column; }
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 15px;
+        }
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+        .logout-link .nav-icon { margin-right: 12px; }
+        .logout-link:hover {
+            background-color: #be123c; /* A red color for logout */
+            color: #fff;
+        }
     </style>
 </head>
 <body>
    <nav class="sidebar">
-        <div class="logo">
-            <div class="logo-icon">WX</div>
-            <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/home.html" class="nav-link">
+                        <div class="nav-icon">📊</div>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/orders.html" class="nav-link">
+                        <div class="nav-icon">📦</div>
+                        Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/customers.html" class="nav-link">
+                        <div class="nav-icon">👥</div>
+                        Customers
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="slots.html" class="nav-link active">
+                        <div class="nav-icon">🏢</div>
+                        Slots
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <div class="nav-icon">🔔</div>
+                        Notifications
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <div class="nav-icon">📈</div>
+                        Reports
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/staff.html" class="nav-link">
+                        <div class="nav-icon">👨‍💼</div>
+                        Staff
+                    </a>
+                </li>
+            </ul>
         </div>
-        
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="/home.html" class="nav-link">
-                    <div class="nav-icon">📊</div>
-                    Dashboard
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/orders.html" class="nav-link">
-                    <div class="nav-icon">📦</div>
-                    Orders
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/customers.html" class="nav-link">
-                    <div class="nav-icon">👥</div>
-                    Customers
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="slots.html" class="nav-link active">
-                    <div class="nav-icon">🏢</div>
-                    Slots
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link">
-                    <div class="nav-icon">🔔</div>
-                    Notifications
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link">
-                    <div class="nav-icon">📈</div>
-                    Reports
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/staff.html" class="nav-link">
-                    <div class="nav-icon">👨‍💼</div>
-                    Staff
-                </a>
-            </li>
-        </ul>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
     </nav>
 
     <main class="main-content">
@@ -200,8 +229,12 @@
             loadingState.style.display = 'flex';
             slotsContainer.style.display = 'none';
 
-            // Fetch slot status for the selected date
             const response = await fetch(`/api/slots/status?date=${selectedDate}`);
+            // MODIFIED: Handle session expiry
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                return window.location.href = '/';
+            }
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.message || 'Failed to fetch slots data.');
@@ -242,7 +275,12 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ maxCapacity: newCapacity })
             });
-
+            
+            // MODIFIED: Handle session expiry
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                return window.location.href = '/';
+            }
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.message || 'Failed to update slot.');

@@ -82,23 +82,65 @@
         .clear-filters-btn:hover {
             background-color: #d1d5db;
         }
+
+        /* Styles for the logout button */
+        .sidebar { display: flex; flex-direction: column; }
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 15px;
+        }
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+        .logout-link .nav-icon { margin-right: 12px; }
+        .logout-link:hover {
+            background-color: #be123c; /* A red color for logout */
+            color: #fff;
+        }
+        
+        /* MODIFIED: Added styles for service type tags */
+        .service-type-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .service-type-tag-standard { background-color: #e5e7eb; color: #4b5563; }
+        .service-type-tag-express { background-color: #c7d2fe; color: #3730a3; }
     </style>
 </head>
 <body>
    <nav class="sidebar">
-        <div class="logo">
-            <div class="logo-icon">WX</div>
-            <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link active"><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
         </div>
-        <ul class="nav-menu">
-            <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
-            <li class="nav-item"><a href="/orders.html" class="nav-link active"><div class="nav-icon">📦</div>Orders</a></li>
-            <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
-            <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
-            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
-            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
-            <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
-        </ul>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
     </nav>
 
     <main class="main-content">
@@ -186,6 +228,7 @@
                         <p><strong>Name:</strong> <span id="modalCustomerName"></span></p>
                         <p><strong>Phone:</strong> <span id="modalCustomerPhone"></span></p>
                         <p><strong>Location:</strong> <span id="modalCustomerLocation"></span></p>
+                        <p><strong>Expected Delivery:</strong> <span id="modalExpectedDelivery" style="color: #166534; font-weight: 600;"></span></p>
                     </div>
                     <div>
                         <h4>Update Status</h4>
@@ -334,7 +377,8 @@
                 if(item.subItems && item.subItems.length > 0) {
                     details = item.subItems.map(si => `<span>${si.quantity}x ${si.itemName}</span>`).join('');
                 }
-                return `<div class="items-popover-category"><strong>${categoryName}</strong>${details}</div>`;
+                const serviceTypeTag = `<span class="service-type-tag service-type-tag-${item.serviceType.toLowerCase()}">${item.serviceType}</span>`;
+                return `<div class="items-popover-category"><strong>${categoryName} ${serviceTypeTag}</strong>${details}</div>`;
             }).join('');
 
             popover.innerHTML = `
@@ -357,7 +401,6 @@
             }
             orderListDiv.innerHTML = ordersToRender.map(order => {
                 const customer = order.customerID || {};
-                const society = customer.society || {};
                 const pickupSlot = order.pickupSlot || {};
                 const orderDate = new Date(order.orderedOn).toLocaleDateString('en-IN');
                 const initials = (customer.customerName || ' ').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
@@ -373,13 +416,13 @@
                         <div class="avatar">${initials}</div>
                         <div>
                             <strong>${customer.customerName || 'N/A'}</strong>
-                            <small>${society.name || 'N/A'}</small>
+                            <small>${order.deliverySociety || 'N/A'}</small>
                         </div>
                     </div>
                     <div class="schedule-info">
                         <strong>₹${order.billAmount.toFixed(2)}</strong>
                         <small>
-                             <a href="#" class="items-link" onclick="showItemsPopover(event, '${order._id}')">${totalCategories} Service Categories</a>
+                             <a href="#" class="items-link" onclick="showItemsPopover(event, '${order._id}')">${totalCategories} Service Items</a>
                         </small>
                         <small title="Pickup Date & Slot">🗓️ ${new Date(order.pickupDate).toLocaleDateString('en-IN')} (${pickupSlot.slotName || 'N/A'})</small>
                         <small title="Pickup Agent">👨‍💼 ${order.pickupAgentName || 'Not Assigned'}</small>
@@ -414,15 +457,40 @@
 
         const openModal = async (orderId) => {
             try {
+                // Fetch full order details. Backend now sends the snapshotted address.
                 const response = await fetch(`/api/orders/${orderId}`);
+                if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) throw new Error('Failed to fetch order details');
                 const order = await response.json();
 
+                // Calculate Expected Delivery Date from service TATs
+                let maxTatHours = 0;
+                order.items.forEach(item => {
+                    const service = item.serviceCategoryID;
+                    if (!service) return;
+                    
+                    const tatString = item.serviceType === 'Express' ? service.expressTAT : service.standardTAT;
+                    const tatHours = parseInt(tatString, 10) || 0;
+                    
+                    if (tatHours > maxTatHours) {
+                        maxTatHours = tatHours;
+                    }
+                });
+
+                const pickupDate = new Date(order.pickupDate);
+                const deliveryDate = new Date(pickupDate.getTime() + maxTatHours * 60 * 60 * 1000);
+                const formattedDeliveryDate = deliveryDate.toLocaleDateString('en-IN', {
+                    day: 'numeric', month: 'short', year: 'numeric'
+                });
+                document.getElementById('modalExpectedDelivery').textContent = formattedDeliveryDate;
+
                 document.getElementById('order-id-input').value = order._id;
                 document.getElementById('modalOrderId').textContent = `#${order._id.slice(-6).toUpperCase()}`;
+                
+                // MODIFIED: Use the order's own address fields for display to ensure historical accuracy
                 document.getElementById('modalCustomerName').textContent = order.customerID.customerName;
                 document.getElementById('modalCustomerPhone').textContent = order.customerID.phone;
-                document.getElementById('modalCustomerLocation').textContent = `${order.customerID.address || ''}, ${order.customerID.society.name}`;
+                document.getElementById('modalCustomerLocation').textContent = `${order.deliveryAddress}, ${order.deliverySociety}`;
                    
                 document.getElementById('orderStatus').value = order.orderStatus;
                 document.getElementById('paymentStatus').value = order.paymentStatus;
@@ -442,10 +510,13 @@
                     if (item.weightInKg) details = `${item.weightInKg} Kg`;
                     if (item.pairCount) details = `${item.pairCount} Pair(s)`;
                     if (item.subItems) details = item.subItems.map(si => `${si.quantity}x ${si.itemName}`).join(', ');
+                    
+                    const serviceTypeTag = `<span class="service-type-tag service-type-tag-${item.serviceType.toLowerCase()}">${item.serviceType}</span>`;
+
                     return `
                         <div class="item-list-row">
                             <div>
-                                <strong>${item.serviceCategoryID.categoryName}</strong>
+                                <strong>${item.serviceCategoryID.categoryName} ${serviceTypeTag}</strong>
                                 <div class="item-details">${details}</div>
                             </div>
                             <div><strong>₹${item.itemTotal.toFixed(2)}</strong></div>
@@ -496,10 +567,12 @@
 
             // 4. Filter by Date Range (orderedOn)
             if (startDate) {
-                filteredOrders = filteredOrders.filter(order => order.orderedOn.split('T')[0] >= startDate);
+                filteredOrders = filteredOrders.filter(order => new Date(order.orderedOn) >= new Date(startDate));
             }
             if (endDate) {
-                filteredOrders = filteredOrders.filter(order => order.orderedOn.split('T')[0] <= endDate);
+                 const endOfDay = new Date(endDate);
+                 endOfDay.setHours(23, 59, 59, 999);
+                filteredOrders = filteredOrders.filter(order => new Date(order.orderedOn) <= endOfDay);
             }
 
             renderOrders(filteredOrders);
@@ -547,6 +620,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+                if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.message);
@@ -572,21 +646,25 @@
                 document.getElementById('loadingState').style.display = 'flex';
                 document.getElementById('orderListContainer').style.display = 'none';
 
-                const [ordersRes, agentsRes, slotsRes] = await Promise.all([
+                const responses = await Promise.all([
                     fetch('/api/orders'),
                     fetch('/api/staff/agents'),
                     fetch('/api/slots')
                 ]);
 
-                if (!ordersRes.ok || !agentsRes.ok || !slotsRes.ok) {
-                    throw new Error('Failed to fetch necessary data.');
+                if (responses.some(res => res.status === 401)) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/';
+                    return;
                 }
+
+                const [ordersRes, agentsRes, slotsRes] = responses;
 
                 allOrders = await ordersRes.json();
                 availableAgents = await agentsRes.json();
                 availableSlots = await slotsRes.json();
                  
-                applyFilters(); // Apply any default filters and render the initial list
+                applyFilters(); 
                 populateModalDropdowns();
 
             } catch (error) {

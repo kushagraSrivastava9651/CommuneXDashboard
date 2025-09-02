@@ -21,7 +21,7 @@
         .radio-item label { font-weight: normal; color: #374151; }
         .radio-item input[type="radio"] { width: 16px; height: 16px; accent-color: #4f46e5; }
 
-        /* MODIFIED: Styles for dynamic service inputs */
+        /* Styles for dynamic service inputs */
         #serviceInputContainer { background-color: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 1rem; }
         .sub-item-row { display: grid; grid-template-columns: 1fr 90px 80px; gap: 10px; align-items: center; margin-bottom: 8px;}
         .sub-item-row label { font-weight: 500; }
@@ -35,24 +35,88 @@
         .status-delivered, .status-collected { background-color: #dcfce7; color: #166534; }
         .status-cancelled { background-color: #f3f4f6; color: #4b5563; }
         .status-collection-pending { background-color: #FEF9C3; color: #854D0E; }
+        
+        /* Styles for the logout button */
+        .sidebar { display: flex; flex-direction: column; }
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 15px;
+        }
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+        .logout-link .nav-icon { margin-right: 12px; }
+        .logout-link:hover {
+            background-color: #be123c; /* A red color for logout */
+            color: #fff;
+        }
+        
+        /* Styles for service type radio buttons */
+        .service-type-group { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+        .service-type-label {
+            display: block;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-grow: 1;
+            text-align: center;
+        }
+        .service-type-label:has(input:checked) {
+            background-color: #e0e7ff;
+            border-color: #4f46e5;
+            color: #3730a3;
+            font-weight: 600;
+        }
+        .service-type-label input { display: none; }
+        .service-type-label small { display: block; font-weight: 400; font-size: 0.8rem; color: #6b7280; }
+        .service-type-label:has(input:checked) small { color: #4338ca; }
+
+        /* Style for the service type tag in the order items list */
+        .service-type-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .service-type-tag-standard { background-color: #e5e7eb; color: #4b5563; }
+        .service-type-tag-express { background-color: #c7d2fe; color: #3730a3; }
     </style>
 </head>
 <body>
    <nav class="sidebar">
-        <div class="logo">
-            <div class="logo-icon">WX</div>
-            <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+             
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link"><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link active"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
         </div>
-         
-        <ul class="nav-menu">
-            <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
-            <li class="nav-item"><a href="/orders.html" class="nav-link"><div class="nav-icon">📦</div>Orders</a></li>
-            <li class="nav-item"><a href="/customers.html" class="nav-link active"><div class="nav-icon">👥</div>Customers</a></li>
-            <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
-            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
-            <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
-            <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
-        </ul>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
     </nav>
 
 
@@ -144,6 +208,23 @@
                         </select>
                     </div>
                 </div>
+                
+                <div class="form-group">
+                    <label class="form-label" style="margin-bottom: 8px;">Service Type (for next item)</label>
+                    <div class="service-type-group" id="serviceTypeGroup">
+                        <label class="service-type-label">
+                            <input type="radio" name="serviceType" value="Standard" checked>
+                            Standard
+                            <small>Regular delivery time</small>
+                        </label>
+                        <label class="service-type-label">
+                            <input type="radio" name="serviceType" value="Express">
+                            Express
+                            <small>~50% faster, 2x price</small>
+                        </label>
+                    </div>
+                </div>
+
 
                 <hr style="margin: 20px 0;">
                   
@@ -208,9 +289,9 @@
             </div>
             <div class="modal-body" style="padding-top: 1rem;">
                  <div class="order-items-list">
-                    <div class="order-item-header" style="grid-template-columns: 1fr 2fr 1fr 1fr;">
+                    <div class="order-item-header" style="grid-template-columns: 1fr 3fr 1fr 1fr;">
                         <div>Order Date</div>
-                        <div>Items</div>
+                        <div>Items Summary</div>
                         <div>Status</div>
                         <div>Amount</div>
                     </div>
@@ -244,6 +325,7 @@
         const orderForm = document.getElementById('orderForm');
         const searchInput = document.getElementById('searchInput');
         const customerOrdersModal = document.getElementById('customerOrdersModal');
+        const serviceTypeGroup = document.getElementById('serviceTypeGroup');
 
         // =================================================================
         //                 DYNAMIC DATA POPULATION
@@ -276,7 +358,9 @@
             }
 
             customerListDiv.innerHTML = data.map((customer) => {
-                const societyName = customer.society ? customer.society.name : 'N/A';
+                // Use the new top-level fields for the current address provided by the backend
+                const societyName = customer.currentSociety ? customer.currentSociety.name : 'N/A';
+                const addressLine = customer.currentAddress || 'N/A';
                 const memberSince = new Date(customer.createdAt || Date.now()).toLocaleDateString("en-IN");
                 const initials = (customer.customerName || '').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
                 const safeCustomerName = customer.customerName.replace(/'/g, "\\'");
@@ -293,7 +377,7 @@
                     <div class="contact-cell"><span>📞 ${customer.phone || 'N/A'}</span></div>
                     <div class="location-cell">
                         <strong>${societyName}</strong>
-                        <small>${customer.address || 'N/A'}</small>
+                        <small>${addressLine}</small>
                     </div>
                     <div class="orders-cell">
                         <a href="#" class="action-link" onclick="event.preventDefault(); showCustomerOrders('${customer._id}', '${safeCustomerName}')">
@@ -316,6 +400,7 @@
             if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) return;
             try {
                 const response = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+                if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.message);
@@ -338,19 +423,31 @@
         }
 
         window.openModalForEdit = (id) => {
+            // Find the original customer object which contains the full addresses array
             const customer = currentCustomerList.find(c => c._id === id);
             if (!customer) return;
+
+            // Find the current address to populate the form. Fallback to the first address.
+            const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
+
             customerForm.reset();
             modalTitle.textContent = 'Edit Customer Details';
             submitBtn.textContent = 'Save Changes';
             customerIdInput.value = customer._id;
             document.getElementById('customerName').value = customer.customerName;
             document.getElementById('phone').value = customer.phone || '';
-            document.getElementById('address').value = customer.address || '';
-            if (customer.society && customer.society._id) {
-                const societyRadio = document.querySelector(`input[name="society"][value="${customer.society._id}"]`);
-                if (societyRadio) societyRadio.checked = true;
+
+            // Populate form with the current address details
+            if (currentAddress) {
+                document.getElementById('address').value = currentAddress.address || '';
+                // The society object might be populated or just an ID, handle both cases.
+                const societyId = currentAddress.society?._id || currentAddress.society;
+                if (societyId) {
+                    const societyRadio = document.querySelector(`input[name="society"][value="${societyId}"]`);
+                    if (societyRadio) societyRadio.checked = true;
+                }
             }
+            
             customerModal.style.display = 'block';
         };
 
@@ -381,7 +478,6 @@
             orderModal.style.display = 'none';
         }
 
-        // ============================ MODIFIED FUNCTION ============================
         function renderOrderItems() {
             const container = document.getElementById('orderItemsContainer');
             if (currentOrderItems.length === 0) {
@@ -399,10 +495,15 @@
                     if(item.subItems) {
                         details = item.subItems.map(si => `${si.quantity}x ${si.itemName} (@₹${si.pricePerItem.toFixed(2)})`).join(', ');
                     }
+                    
+                    const serviceTypeClass = item.serviceType.toLowerCase();
                     return `
                     <div class="order-item-row" data-index="${index}">
                         <div>
-                            <strong>${service.categoryName}</strong>
+                            <strong>
+                                ${service.categoryName}
+                                <span class="service-type-tag service-type-tag-${serviceTypeClass}">${item.serviceType}</span>
+                            </strong>
                             <div class="item-details">${details}</div>
                         </div>
                         <div><strong>₹${item.itemTotal.toFixed(2)}</strong></div>
@@ -423,14 +524,18 @@
             document.getElementById('orderTotal').textContent = `Total Amount: ₹${total.toFixed(2)}`;
         }
 
-        // ============================ MODIFIED FUNCTION ============================
         function renderServiceInputs(service) {
             const container = document.getElementById('serviceInputContainer');
+            const selectedServiceType = document.querySelector('input[name="serviceType"]:checked').value;
+            const isExpress = selectedServiceType === 'Express';
+            const multiplier = isExpress ? (service.expressPriceMultiplier || 2) : 1;
+            const tat = isExpress ? service.expressTAT : service.standardTAT;
+
             let content = '';
             switch (service.pricingModel) {
                 case 'PerKg':
                     content = `
-                        <p><strong>Details for ${service.categoryName}:</strong></p>
+                        <p><strong>Details for ${service.categoryName}:</strong> <span style="font-size:0.9rem; color: #4f46e5;">(TAT: ${tat})</span></p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                            <div class="form-group" style="margin: 0;">
                               <label class="form-label">Weight (in Kg)</label>
@@ -438,13 +543,13 @@
                            </div>
                            <div class="form-group" style="margin: 0;">
                               <label class="form-label">Price per Kg (₹)</label>
-                              <input type="number" step="1" min="0" class="form-input" id="service-input-price" value="${service.pricePerKg}">
+                              <input type="number" step="1" min="0" class="form-input" id="service-input-price" value="${(service.pricePerKg * multiplier).toFixed(2)}">
                            </div>
                         </div>`;
                     break;
                 case 'PerPair':
                     content = `
-                        <p><strong>Details for ${service.categoryName}:</strong></p>
+                        <p><strong>Details for ${service.categoryName}:</strong> <span style="font-size:0.9rem; color: #4f46e5;">(TAT: ${tat})</span></p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                            <div class="form-group" style="margin: 0;">
                               <label class="form-label">Number of Pairs</label>
@@ -452,7 +557,7 @@
                            </div>
                            <div class="form-group" style="margin: 0;">
                               <label class="form-label">Price per Pair (₹)</label>
-                              <input type="number" step="1" min="0" class="form-input" id="service-input-price" value="${service.pricePerPair}">
+                              <input type="number" step="1" min="0" class="form-input" id="service-input-price" value="${(service.pricePerPair * multiplier).toFixed(2)}">
                            </div>
                         </div>`;
                     break;
@@ -461,11 +566,11 @@
                     const items = service.subcategories.map(sub => `
                         <div class="sub-item-row" data-name="${sub.itemName}">
                            <label>${sub.itemName}</label>
-                           <input type="number" min="0" value="${sub.price}" class="form-input sub-item-price">
+                           <input type="number" min="0" value="${(sub.price * multiplier).toFixed(2)}" class="form-input sub-item-price">
                            <input type="number" min="0" placeholder="0" class="form-input sub-item-qty">
                         </div>`
                     ).join('');
-                    content = `<p><strong>Add Items for ${service.categoryName}:</strong></p>${header}${items}`;
+                    content = `<p><strong>Add Items for ${service.categoryName}:</strong> <span style="font-size:0.9rem; color: #4f46e5;">(TAT: ${tat})</span></p>${header}${items}`;
                     break;
             }
             container.innerHTML = content + `<button type="button" class="btn-primary" id="addServiceItemBtn" style="margin-top: 16px;">Add to Order</button>`;
@@ -473,14 +578,12 @@
             document.getElementById('addServiceItemBtn').addEventListener('click', () => addServiceToOrder(service));
         }
 
-        // ============================ MODIFIED FUNCTION ============================
         function addServiceToOrder(service) {
-             const existingItemIndex = currentOrderItems.findIndex(item => item.serviceCategoryID === service._id);
-            if (existingItemIndex !== -1) {
-                alert(`The service category "${service.categoryName}" is already in the order. Please remove it first to make changes.`);
-                return;
-            }
-            const newItem = { serviceCategoryID: service._id, itemTotal: 0 };
+            const newItem = {
+                serviceCategoryID: service._id,
+                itemTotal: 0,
+                serviceType: document.querySelector('input[name="serviceType"]:checked').value
+            };
             let isValid = true;
 
             switch(service.pricingModel) {
@@ -534,6 +637,8 @@
                     newItem.itemTotal = total;
                     break;
             }
+            
+            if (!isValid || newItem.itemTotal === 0) return;
 
             currentOrderItems.push(newItem);
             renderOrderItems();
@@ -561,6 +666,7 @@
 
             try {
                 const response = await fetch(`/api/customers/${customerId}/orders`);
+                if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) throw new Error('Failed to fetch orders.');
                 const orders = await response.json();
 
@@ -584,10 +690,10 @@
                             count = `(${totalQty} items)`;
                         }
                         return `${categoryName} ${count}`;
-                    }).join(', ');
+                    }).join('; ');
                      
                     return `
-                    <div class="order-item-row" style="grid-template-columns: 1fr 2fr 1fr 1fr;">
+                    <div class="order-item-row" style="grid-template-columns: 1fr 3fr 1fr 1fr;">
                         <div>${orderDate}</div>
                         <div class="item-details" style="font-size: 0.8rem; white-space: normal;">${itemSummary}</div>
                         <div><span class="status-badge status-${order.orderStatus.toLowerCase().replace(/ /g, '-')}">${order.orderStatus}</span></div>
@@ -611,11 +717,22 @@
              e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
+            const societyRadio = document.querySelector('input[name="society"]:checked');
+            if (societyRadio) {
+                data.society = societyRadio.value;
+            } else if (!data.id) {
+                alert('Please select a society.');
+                return;
+            }
+            
             const id = data.id;
+            delete data.id;
+
             const method = id ? 'PUT' : 'POST';
             const url = id ? `/api/customers/${id}` : '/api/customers';
             try {
                 const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) { const error = await response.json(); throw new Error(error.message); }
                 closeModal();
                 await initializePage();
@@ -636,18 +753,46 @@
                 billAmount: billAmount
             };
             if (!orderData.pickupAgent) delete orderData.pickupAgent;
-            if (orderData.items.length === 0) { alert('Please add at least one service to the order.'); return; }
+            if (orderData.items.length === 0) {
+                alert('Please add at least one service to the order.');
+                return;
+            }
             
             const submitBtn = document.getElementById('submitOrderBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Creating...';
 
             try {
-                const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
-                if (!response.ok) { const error = await response.json(); throw new Error(error.message); }
-                alert('Order created successfully! You will now be redirected to the orders page.');
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+
+                if (response.status === 401) return window.location.href = '/';
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+
+                // --- NEW: Handle the array of created orders in the response ---
+                const newOrders = await response.json();
+
+                // Create a more informative success message
+                const orderIds = newOrders.map(order => `#${order._id.slice(-6).toUpperCase()}`);
+                let alertMessage = '';
+                if (newOrders.length > 1) {
+                    alertMessage = `Success! ${newOrders.length} separate orders have been created: ${orderIds.join(' and ')}.`;
+                } else {
+                    alertMessage = `Success! Order ${orderIds[0]} has been created.`;
+                }
+                
+                alert(alertMessage + '\nYou will now be redirected to the orders page.');
+                // --- End of New Logic ---
+
                 closeOrderModal();
                 window.location.href = '/orders.html';
+
             } catch (error) {
                 alert(`Error creating order: ${error.message}`);
             } finally {
@@ -687,6 +832,14 @@
             renderServiceInputs(service);
         });
 
+        serviceTypeGroup.addEventListener('change', () => {
+            const serviceId = document.getElementById('serviceCategorySelect').value;
+            if (serviceId) {
+                const service = availableServices.find(s => s._id === serviceId);
+                renderServiceInputs(service);
+            }
+        });
+
         window.addEventListener('click', (e) => {
             if (e.target === customerModal) closeModal();
             if (e.target === orderModal) closeOrderModal();
@@ -698,13 +851,21 @@
                 document.getElementById('loadingState').style.display = 'flex';
                 document.getElementById('customerListContainer').style.display = 'none';
 
-                const [socRes, custRes, servRes, slotsRes, agentsRes] = await Promise.all([
+                const responses = await Promise.all([
                     fetch('/api/societies'),
                     fetch('/api/customers'),
                     fetch('/api/services'),
                     fetch('/api/slots'),
                     fetch('/api/staff/agents')
                 ]);
+                
+                if (responses.some(res => res.status === 401)) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/';
+                    return;
+                }
+                
+                const [socRes, custRes, servRes, slotsRes, agentsRes] = responses;
 
                 // Societies
                 const societies = await socRes.json();

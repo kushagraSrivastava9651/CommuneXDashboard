@@ -5,6 +5,8 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 require('dotenv').config();
 
 const app = express();
@@ -17,6 +19,33 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET ,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db'
+    }),
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24 // Session expires in 1 day
+    }
+}));
+
+// Authentication middleware to protect routes
+const isAuthenticated = (req, res, next) => {
+    if (req.session.user) {
+        return next(); // User is logged in, proceed
+    }
+    // If it's an API request, send a 401 Unauthorized status
+    if (req.originalUrl.startsWith('/api/')) {
+        return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+    }
+    // For page requests, redirect to the login page
+    res.redirect('/');
+};
+
 
 // =================================================================
 //                      DATABASE CONNECTION
@@ -61,15 +90,17 @@ const staffSchema = new mongoose.Schema({
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true }
 }, { timestamps: true });
 
+// An embedded schema for addresses to support multiple addresses per customer
+const embeddedAddressSchema = new mongoose.Schema({
+    address: { type: String, required: true }, // e.g., "Flat 101, Block A"
+    society: { type: mongoose.Schema.Types.ObjectId, ref: 'Society', required: true },
+    isCurrent: { type: Boolean, default: false }
+}, { _id: true }); // Give each address a unique ID
+
 const customerSchema = new mongoose.Schema({
     customerName: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
-    address: { type: String },
-    society: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Society',
-        required: true
-    }
+    addresses: [embeddedAddressSchema] // Replaces the old 'address' and 'society' fields
 }, { timestamps: true });
 
 
@@ -96,7 +127,9 @@ const serviceSchema = new mongoose.Schema({
         itemName: { type: String, required: true },
         price: { type: Number, required: true }
     }],
-    standardTAT: { type: String, required: true }
+    standardTAT: { type: String, required: true },
+    expressTAT: { type: String },
+    expressPriceMultiplier: { type: Number, default: 2 }
 });
 
 const slotSchema = new mongoose.Schema({
@@ -105,17 +138,22 @@ const slotSchema = new mongoose.Schema({
     maxCapacity: { type: Number, default: 5, min: 1 }
 });
 
-// ============================ MODIFIED SCHEMA ============================
 const orderSchema = new mongoose.Schema({
     customerID: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
+
+    // Address snapshot fields to ensure historical order data is immutable
+    deliveryAddress: { type: String, required: true },
+    deliverySociety: { type: String, required: true },
+
     orderSource: { type: String, enum: ['Call', 'Walk-in'], default: 'Call' },
     deliveryType: { type: String, enum: ['Store Pick-up', 'Home Delivery'], default: 'Home Delivery' },
     items: [{
         serviceCategoryID: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+        serviceType: { type: String, enum: ['Standard', 'Express'], required: true },
         weightInKg: { type: Number, min: 0 },
         pairCount: { type: Number, min: 0 },
-        pricePerKg: { type: Number }, // ADDED: To store the price for this specific order item
-        pricePerPair: { type: Number },// ADDED: To store the price for this specific order item
+        pricePerKg: { type: Number },
+        pricePerPair: { type: Number },
         subItems: [{
             itemName: { type: String, required: true },
             quantity: { type: Number, required: true, min: 1 },
@@ -155,6 +193,7 @@ const Slot = mongoose.model('Slot', slotSchema);
 // =================================================================
 //                 DATA SEEDING FUNCTIONS
 // =================================================================
+
 async function seedRoles() {
     try {
         const roles = ["Pickup Agent", "Delivery Agent", "Staff"];
@@ -182,8 +221,8 @@ async function seedSocieties() {
 async function seedServices() {
     try {
         const servicesData = [
-            { categoryName: 'Wash & Fold', pricingModel: 'PerKg', pricePerKg: 80, standardTAT: '48 Hours' },
-            { categoryName: 'Wash & Iron', pricingModel: 'PerKg', pricePerKg: 100, standardTAT: '48 Hours' },
+            { categoryName: 'Wash & Fold', pricingModel: 'PerKg', pricePerKg: 80, standardTAT: '48 Hours', expressTAT: '24 Hours', expressPriceMultiplier: 2 },
+            { categoryName: 'Wash & Iron', pricingModel: 'PerKg', pricePerKg: 100, standardTAT: '48 Hours', expressTAT: '24 Hours', expressPriceMultiplier: 2 },
             {
                 categoryName: 'Ironing Only',
                 pricingModel: 'PerItem',
@@ -194,7 +233,9 @@ async function seedServices() {
                     { itemName: 'Jeans', price: 30 },
                     { itemName: 'Others', price: 20 }
                 ],
-                standardTAT: '24 Hours'
+                standardTAT: '24 Hours',
+                expressTAT: '12 Hours',
+                expressPriceMultiplier: 2
             },
             {
                 categoryName: 'Dry Cleaning',
@@ -207,9 +248,11 @@ async function seedServices() {
                     { itemName: 'Lehenga', price: 400 },
                     { itemName: 'Others', price: 100 }
                 ],
-                standardTAT: '72 Hours'
+                standardTAT: '72 Hours',
+                expressTAT: '36 Hours',
+                expressPriceMultiplier: 2
             },
-            { categoryName: 'Shoes & Footwear', pricingModel: 'PerPair', pricePerPair: 120, standardTAT: '72 Hours' }
+            { categoryName: 'Shoes & Footwear', pricingModel: 'PerPair', pricePerPair: 120, standardTAT: '72 Hours', expressTAT: '36 Hours', expressPriceMultiplier: 2 }
         ];
 
         for (const service of servicesData) {
@@ -220,7 +263,12 @@ async function seedServices() {
                 console.log(`✅ Service '${service.categoryName}' seeded.`);
             } else {
                 let needsUpdate = false;
-                if (service.pricingModel === 'PerItem') {
+                if (!existingService.expressTAT || !existingService.expressPriceMultiplier) {
+                    existingService.expressTAT = service.expressTAT;
+                    existingService.expressPriceMultiplier = service.expressPriceMultiplier;
+                    needsUpdate = true;
+                }
+                 if (service.pricingModel === 'PerItem') {
                     const hasOthers = existingService.subcategories.some(sub => sub.itemName === 'Others');
                     if (!hasOthers) {
                         const othersSubCategory = service.subcategories.find(sub => sub.itemName === 'Others');
@@ -232,7 +280,7 @@ async function seedServices() {
                 }
                 if (needsUpdate) {
                     await existingService.save();
-                    console.log(`🔄 Service '${service.categoryName}' updated with 'Others' subcategory.`);
+                    console.log(`🔄 Service '${service.categoryName}' updated.`);
                 }
             }
         }
@@ -263,50 +311,74 @@ async function seedSlots() {
 
 
 // =================================================================
-//            ADMIN & SUPERVISOR ROUTES
+//            ADMIN & AUTHENTICATION ROUTES
 // =================================================================
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/customers.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'customers.html')));
-app.get('/slots.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'slots.html')));
+app.get('/home.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'home.html')));
+app.get('/customers.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'customers.html')));
+app.get('/slots.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'slots.html')));
+app.get('/orders.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'orders.html')));
+app.get('/staff.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
+app.get('/services.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'services.html')));
 
-
-app.post('/signup', async (req, res) => {
-    try {
-        const { email, password, phone, society, role } = req.body;
-        if (await User.findOne({ email })) return res.status(400).send('A user with this email already exists.');
-        const newUser = new User({ email, password, phone, society, role });
-        await newUser.save();
-        res.redirect('/login.html');
-    } catch (error) {
-        res.status(500).send('Server error during signup.');
-    }
-});
 
 app.post('/login', async (req, res) => {
     try {
         const user = await User.findOne({ email: req.body.email });
         if (!user || req.body.password !== user.password) {
-            return res.status(400).send('Invalid credentials.');
+            return res.status(401).send('Invalid credentials.');
         }
+
+        req.session.user = {
+            id: user._id,
+            email: user.email,
+            role: user.role
+        };
+
         res.redirect('/home.html');
     } catch (error) {
         res.status(500).send('Server error during login.');
     }
 });
 
+
+
+app.get('/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            return res.status(500).send('Could not log out.');
+        }
+        res.redirect('/');
+    });
+});
+
+
 // =================================================================
-//            DATA MANAGEMENT ROUTES
+//            PROTECTED API ROUTES MIDDLEWARE
+// =================================================================
+
+app.use('/api', isAuthenticated);
+
+
+// =================================================================
+//            DATA MANAGEMENT ROUTES (for dropdowns, etc.)
 // =================================================================
 
 app.get('/api/roles', async (req, res) => {
-    try { res.json(await Role.find({})); }
-    catch (error) { res.status(500).json({ message: 'Server error while fetching roles.' }); }
+    try {
+        res.json(await Role.find({}));
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while fetching roles.' });
+    }
 });
 
 app.get('/api/societies', async (req, res) => {
-    try { res.json(await Society.find({})); }
-    catch (error) { res.status(500).json({ message: 'Server error while fetching societies.' }); }
+    try {
+        res.json(await Society.find({}));
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while fetching societies.' });
+    }
 });
 
 app.get('/api/slots', async (req, res) => {
@@ -379,33 +451,47 @@ app.put('/api/slots/:id', async (req, res) => {
 // =================================================================
 //            STAFF MANAGEMENT ROUTES
 // =================================================================
+
 app.get('/api/staff', async (req, res) => {
-    try { res.json(await Staff.find({}).populate('role').populate('society')); }
-    catch (error) { res.status(500).json({ message: 'Server error fetching staff.' }); }
+    try {
+        res.json(await Staff.find({}).populate('role').populate('society'));
+    } catch (error) {
+        res.status(500).json({ message: 'Server error fetching staff.' });
+    }
 });
+
 app.post('/api/staff', async (req, res) => {
     try {
         const newStaff = new Staff(req.body);
         await newStaff.save();
         const populatedStaff = await Staff.findById(newStaff._id).populate('role').populate('society');
         res.status(201).json(populatedStaff);
-    } catch (error) { res.status(500).json({ message: 'Error adding staff member.' }); }
+    } catch (error) {
+        res.status(500).json({ message: 'Error adding staff member.' });
+    }
 });
+
 app.put('/api/staff/:id', async (req, res) => {
     try {
         const updatedStaff = await Staff.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
             .populate('role').populate('society');
         if (!updatedStaff) return res.status(404).json({ message: 'Staff not found.' });
         res.json(updatedStaff);
-    } catch (error) { res.status(500).json({ message: 'Error updating staff.' }); }
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating staff.' });
+    }
 });
+
 app.delete('/api/staff/:id', async (req, res) => {
     try {
         const deletedStaff = await Staff.findByIdAndDelete(req.params.id);
         if (!deletedStaff) return res.status(404).json({ message: 'Staff not found.' });
         res.json({ message: 'Staff deleted successfully.' });
-    } catch (error) { res.status(500).json({ message: 'Error deleting staff.' }); }
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting staff.' });
+    }
 });
+
 app.get('/api/staff/agents', async (req, res) => {
     try {
         const agentRoles = await Role.find({ role_name: { $in: ['Pickup Agent', 'Delivery Agent'] } });
@@ -442,12 +528,18 @@ app.get('/api/customers', async (req, res) => {
             return acc;
         }, {});
 
-        const customers = await Customer.find({}).populate('society').lean();
+        // Populate society within the addresses array
+        const customers = await Customer.find({}).populate('addresses.society').lean();
 
         const customersWithStats = customers.map(customer => {
             const stats = statsMap[customer._id.toString()];
+            // Find the current address to display in the main list
+            const currentAddress = customer.addresses?.find(a => a.isCurrent) || customer.addresses?.[0];
             return {
                 ...customer,
+                // Add top-level fields for easy access on the frontend list
+                currentAddress: currentAddress ? currentAddress.address : 'N/A',
+                currentSociety: currentAddress ? currentAddress.society : { name: 'N/A' },
                 orderCount: stats ? stats.orderCount : 0,
                 totalSpent: stats ? stats.totalSpent : 0
             };
@@ -466,7 +558,10 @@ app.get('/api/customers/:id/orders', async (req, res) => {
         const customerId = req.params.id;
         const orders = await Order.find({ customerID: customerId })
             .select('orderedOn billAmount orderStatus items')
-            .populate('items.serviceCategoryID', 'categoryName')
+            .populate({
+                path: 'items.serviceCategoryID',
+                select: 'categoryName'
+             })
             .sort({ orderedOn: -1 });
 
         if (!orders) {
@@ -482,35 +577,73 @@ app.get('/api/customers/:id/orders', async (req, res) => {
 
 app.post('/api/customers', async (req, res) => {
     try {
-        const newCustomer = new Customer(req.body);
+        const { customerName, phone, address, society } = req.body;
+
+        // Create a new customer with their first address set as current
+        const newCustomerData = {
+            customerName,
+            phone,
+            addresses: [{
+                address,
+                society,
+                isCurrent: true
+            }]
+        };
+
+        const newCustomer = new Customer(newCustomerData);
         await newCustomer.save();
-        const populatedCustomer = await Customer.findById(newCustomer._id).populate('society');
+
+        const populatedCustomer = await Customer.findById(newCustomer._id).populate('addresses.society');
         res.status(201).json(populatedCustomer);
     } catch (error) {
         if (error.code === 11000) return res.status(400).json({ message: 'A customer with this phone number already exists.' });
         res.status(500).json({ message: 'Error adding new customer.' });
     }
 });
+
 app.put('/api/customers/:id', async (req, res) => {
     try {
-        const updatedCustomer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
-            .populate('society');
-        if (!updatedCustomer) return res.status(404).json({ message: 'Customer not found.' });
-        res.json(updatedCustomer);
-    } catch (error) { res.status(500).json({ message: 'Error updating customer.' }); }
+        const { customerName, phone, address, society } = req.body;
+        const customer = await Customer.findById(req.params.id);
+        if (!customer) return res.status(404).json({ message: 'Customer not found.' });
+
+        customer.customerName = customerName;
+        customer.phone = phone;
+
+        // This is a simplified update. A full implementation would manage the whole array.
+        // Here, we update the first address, assuming it's the one being edited.
+        if (customer.addresses && customer.addresses.length > 0) {
+            customer.addresses[0].address = address;
+            customer.addresses[0].society = society;
+        } else {
+            // If no address exists, add one
+            customer.addresses.push({ address, society, isCurrent: true });
+        }
+
+        await customer.save();
+
+        const populatedCustomer = await Customer.findById(customer._id).populate('addresses.society');
+        res.json(populatedCustomer);
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating customer.' });
+    }
 });
+
 app.delete('/api/customers/:id', async (req, res) => {
     try {
         const deletedCustomer = await Customer.findByIdAndDelete(req.params.id);
         if (!deletedCustomer) return res.status(404).json({ message: 'Customer not found.' });
         res.json({ message: 'Customer deleted successfully.' });
-    } catch (error) { res.status(500).json({ message: 'Error deleting customer.' }); }
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting customer.' });
+    }
 });
 
 
 // =================================================================
 //                 SERVICE & ORDER ROUTES
 // =================================================================
+
 app.get('/api/services', async (req, res) => {
     try {
         res.json(await Service.find({}));
@@ -548,8 +681,7 @@ app.get('/api/orders', async (req, res) => {
         const orders = await Order.find({})
             .populate({
                 path: 'customerID',
-                select: 'customerName phone society address',
-                populate: { path: 'society', model: 'Society', select: 'name' }
+                select: 'customerName phone', // Address is now in the order, so we only need basic info
             })
             .populate('items.serviceCategoryID', 'categoryName pricingModel')
             .populate('pickupSlot deliverySlot', 'slotName')
@@ -566,7 +698,7 @@ app.get('/api/orders/:id', async (req, res) => {
         const order = await Order.findById(req.params.id)
             .populate({
                 path: 'customerID',
-                populate: { path: 'society', model: 'Society' }
+                select: 'customerName phone' // Only need basic customer info
             })
             .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot')
@@ -580,16 +712,16 @@ app.get('/api/orders/:id', async (req, res) => {
     }
 });
 
-// ============================ MODIFIED ROUTE ============================
 app.post('/api/orders', async (req, res) => {
-    const { items, pickupDate, pickupSlot, pickupAgent, billAmount: clientBillAmount } = req.body;
+    // Contains common info like customerID, pickupDate, agent, etc.
+    const { customerID, items, pickupDate, pickupSlot, pickupAgent } = req.body;
 
     try {
+        // === 1. Initial Validations (Unchanged) ===
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'Order must contain at least one item.' });
         }
-
-        // Slot validation... (no changes here)
+        // Slot capacity check
         const slot = await Slot.findById(pickupSlot);
         if (!slot) return res.status(400).json({ message: 'Invalid pickup slot selected.' });
         const targetDate = new Date(pickupDate);
@@ -601,99 +733,114 @@ app.post('/api/orders', async (req, res) => {
             pickupDate: { $gte: startDate, $lt: endDate }
         });
         if (pickupCount >= slot.maxCapacity) {
-            return res.status(400).json({ message: `Pickup slot for this date is full (limit: ${slot.maxCapacity}). Please choose another.` });
+            return res.status(400).json({ message: `Pickup slot for this date is full. Please choose another.` });
+        }
+        // Address snapshot logic
+        const customer = await Customer.findById(customerID).populate('addresses.society');
+        if (!customer) return res.status(404).json({ message: 'Customer not found.' });
+        const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
+        if (!currentAddress) {
+            return res.status(400).json({ message: 'Customer does not have a current address set.' });
         }
 
-        let serverCalculatedBill = 0;
-        const processedItems = [];
-
-        for (const item of items) {
-            const service = await Service.findById(item.serviceCategoryID);
-            if (!service) return res.status(400).json({ message: `Invalid service category ID: ${item.serviceCategoryID}` });
-
-            let currentItemTotal = 0;
-            const processedItem = { serviceCategoryID: service._id };
-
-            switch (service.pricingModel) {
-                case 'PerKg':
-                    if (!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({ message: 'Invalid weight for PerKg service.' });
-                    if (typeof item.pricePerKg !== 'number' || item.pricePerKg < 0) return res.status(400).json({ message: `A valid price for ${service.categoryName} is required.` });
-                    
-                    currentItemTotal = item.weightInKg * item.pricePerKg; // Use client-provided price
-                    processedItem.weightInKg = item.weightInKg;
-                    processedItem.pricePerKg = item.pricePerKg; // Store client-provided price
-                    break;
-
-                case 'PerPair':
-                    if (!item.pairCount || item.pairCount <= 0) return res.status(400).json({ message: 'Invalid pair count for PerPair service.' });
-                     if (typeof item.pricePerPair !== 'number' || item.pricePerPair < 0) return res.status(400).json({ message: `A valid price for ${service.categoryName} is required.` });
-
-                    currentItemTotal = item.pairCount * item.pricePerPair; // Use client-provided price
-                    processedItem.pairCount = item.pairCount;
-                    processedItem.pricePerPair = item.pricePerPair; // Store client-provided price
-                    break;
-
-                case 'PerItem':
-                    if (!item.subItems || item.subItems.length === 0) return res.status(400).json({ message: 'No sub-items provided for PerItem service.' });
-                    processedItem.subItems = [];
-                    for (const sub of item.subItems) {
-                        const serviceSubItemExists = service.subcategories.some(s => s.itemName === sub.itemName);
-                        if (!serviceSubItemExists) return res.status(400).json({ message: `Invalid sub-item name: ${sub.itemName}` });
-                        if (!sub.quantity || sub.quantity <= 0) return res.status(400).json({ message: `Quantity for ${sub.itemName} must be a positive number.` });
-                        if (typeof sub.pricePerItem !== 'number' || sub.pricePerItem < 0) return res.status(400).json({ message: `Invalid price provided for ${sub.itemName}.` });
-                        
-                        currentItemTotal += sub.quantity * sub.pricePerItem;
-                        processedItem.subItems.push({
-                            itemName: sub.itemName,
-                            quantity: sub.quantity,
-                            pricePerItem: sub.pricePerItem
-                        });
-                    }
-                    break;
-                default:
-                    return res.status(400).json({ message: 'Unknown pricing model.' });
+        // === 2. Group Items by Service Type (New Logic) ===
+        const itemGroups = items.reduce((groups, item) => {
+            const type = item.serviceType; // 'Standard' or 'Express'
+            if (!groups[type]) {
+                groups[type] = [];
             }
-              
-            processedItem.itemTotal = currentItemTotal;
-            processedItems.push(processedItem);
-            serverCalculatedBill += currentItemTotal;
-        }
+            groups[type].push(item);
+            return groups;
+        }, {});
 
-        if (Math.abs(serverCalculatedBill - clientBillAmount) > 0.01) {
-            return res.status(400).json({ message: `Bill amount mismatch. Client: ${clientBillAmount}, Server: ${serverCalculatedBill}. Please refresh and try again.` });
-        }
+        const createdOrders = [];
 
-        const newOrderData = { ...req.body };
-        newOrderData.items = processedItems;
-        newOrderData.billAmount = serverCalculatedBill;
+        // === 3. Loop Through Groups and Create an Order for Each ===
+        for (const serviceType in itemGroups) {
+            const groupItems = itemGroups[serviceType];
+            
+            // --- Re-usable Price Calculation & Validation Logic ---
+            let serverCalculatedBill = 0;
+            const processedItems = [];
+            for (const item of groupItems) {
+                const service = await Service.findById(item.serviceCategoryID);
+                if (!service) return res.status(400).json({ message: `Invalid service ID: ${item.serviceCategoryID}` });
 
-        if (pickupAgent) {
-            const agent = await Staff.findById(pickupAgent);
-            if (agent) {
-                newOrderData.pickupAgentName = agent.name;
-                newOrderData.orderStatus = 'Pick-up Pending';
+                const isExpress = item.serviceType === 'Express';
+                const multiplier = isExpress ? (service.expressPriceMultiplier || 2) : 1;
+                let currentItemTotal = 0;
+                const processedItem = { serviceCategoryID: service._id, serviceType: item.serviceType };
+
+                switch (service.pricingModel) {
+                    case 'PerKg':
+                        if(!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({message: 'Weight is required for PerKg items.'});
+                        const pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
+                        currentItemTotal = item.weightInKg * pricePerKg;
+                        processedItem.weightInKg = item.weightInKg;
+                        processedItem.pricePerKg = pricePerKg;
+                        break;
+                    case 'PerPair':
+                         if(!item.pairCount || item.pairCount <= 0) return res.status(400).json({message: 'Pair count is required for PerPair items.'});
+                        const pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
+                        currentItemTotal = item.pairCount * pricePerPair;
+                        processedItem.pairCount = item.pairCount;
+                        processedItem.pricePerPair = pricePerPair;
+                        break;
+                    case 'PerItem':
+                        if(!item.subItems || item.subItems.length === 0) return res.status(400).json({message: 'Sub-items are required for PerItem services.'});
+                        processedItem.subItems = [];
+                        for (const sub of item.subItems) {
+                            const serviceSubItem = service.subcategories.find(s => s.itemName === sub.itemName);
+                            if (!serviceSubItem) return res.status(400).json({ message: `Invalid sub-item: ${sub.itemName}`});
+                            const pricePerItem = sub.pricePerItem || (serviceSubItem.price * multiplier);
+                            currentItemTotal += sub.quantity * pricePerItem;
+                            processedItem.subItems.push({ itemName: sub.itemName, quantity: sub.quantity, pricePerItem });
+                        }
+                        break;
+                    default: return res.status(400).json({ message: 'Unknown pricing model.' });
+                }
+                processedItem.itemTotal = currentItemTotal;
+                processedItems.push(processedItem);
+                serverCalculatedBill += currentItemTotal;
             }
-        } else {
-            newOrderData.orderStatus = 'New';
+            // --- End of Price Logic ---
+
+            // --- Create the Order Document ---
+            const newOrderData = {
+                ...req.body, // Contains common info like customerID, pickupDate, etc.
+                items: processedItems,
+                billAmount: serverCalculatedBill,
+                deliveryAddress: currentAddress.address,
+                deliverySociety: currentAddress.society.name,
+            };
+
+            if (pickupAgent) {
+                const agent = await Staff.findById(pickupAgent);
+                if (agent) {
+                    newOrderData.pickupAgentName = agent.name;
+                    newOrderData.orderStatus = 'Pick-up Pending';
+                }
+            } else {
+                newOrderData.orderStatus = 'New';
+            }
+
+            const newOrder = new Order(newOrderData);
+            await newOrder.save();
+            const populatedOrder = await Order.findById(newOrder._id)
+                .populate('customerID', 'customerName')
+                .populate('items.serviceCategoryID', 'categoryName')
+                .populate('pickupSlot', 'slotName');
+            
+            createdOrders.push(populatedOrder);
         }
 
-        const newOrder = new Order(newOrderData);
-        await newOrder.save();
+        // === 4. Send Array of Created Orders as Response ===
+        res.status(201).json(createdOrders);
 
-        const populatedOrder = await Order.findById(newOrder._id)
-            .populate({
-                path: 'customerID',
-                select: 'customerName society',
-                populate: { path: 'society', model: 'Society', select: 'name' }
-            })
-            .populate('items.serviceCategoryID', 'categoryName')
-            .populate('pickupSlot deliverySlot', 'slotName');
-
-        res.status(201).json(populatedOrder);
     } catch (error) {
         console.error(error);
         if (error.name === 'ValidationError') return res.status(400).json({ message: error.message });
-        res.status(500).json({ message: 'Error creating new order.' });
+        res.status(500).json({ message: 'Error creating new order(s).' });
     }
 });
 
@@ -719,14 +866,17 @@ app.put('/api/orders/:id', async (req, res) => {
             }
         }
 
+        // Prevent address from being updated on an existing order
+        delete updateData.deliveryAddress;
+        delete updateData.deliverySociety;
+
         const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true });
         if (!updatedOrder) return res.status(404).json({ message: 'Order not found.' });
 
         const populatedOrder = await Order.findById(updatedOrder._id)
              .populate({
                 path: 'customerID',
-                select: 'customerName phone society address',
-                populate: { path: 'society', model: 'Society', select: 'name' }
+                select: 'customerName phone',
             })
             .populate('items.serviceCategoryID', 'categoryName pricingModel')
             .populate('pickupSlot deliverySlot', 'slotName');
@@ -772,8 +922,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
         const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
 
         const activeCustomers = await Order.distinct('customerID', dateFilter);
-        const societiesData = await Customer.find({ _id: { $in: activeCustomers } }).populate('society');
-        const activeSocieties = new Set(societiesData.map(c => c.society?.name).filter(Boolean));
+        const societiesData = await Customer.find({ _id: { $in: activeCustomers } }).populate('addresses.society');
+        const activeSocieties = new Set(societiesData.flatMap(c => c.addresses.map(a => a.society?.name)).filter(Boolean));
         const orderStatusBreakdown = await Order.aggregate([
             { $match: dateFilter },
             { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
@@ -783,8 +933,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
             .limit(5)
             .populate({
                 path: 'customerID',
-                select: 'customerName society',
-                populate: { path: 'society', select: 'name' }
+                select: 'customerName',
             });
 
         res.json({
@@ -803,4 +952,6 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // =================================================================
 //                        START THE SERVER
 // =================================================================
-app.listen(PORT, () => console.log(`🚀 Server is running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+});
