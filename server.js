@@ -5,8 +5,9 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const app = express();
@@ -19,31 +20,33 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(cookieParser());
 
-// Session configuration
-app.use(session({
-    secret: process.env.SESSION_SECRET ,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db'
-    }),
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24 // Session expires in 1 day
-    }
-}));
-
-// Authentication middleware to protect routes
+// Authentication middleware to protect routes using JWT from cookies
 const isAuthenticated = (req, res, next) => {
-    if (req.session.user) {
-        return next(); // User is logged in, proceed
+    const token = req.cookies.token;
+
+    if (!token) {
+        // For API requests, send a 401 Unauthorized status
+        if (req.originalUrl.startsWith('/api/')) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+        }
+        // For page requests, redirect to the login page
+        return res.redirect('/');
     }
-    // If it's an API request, send a 401 Unauthorized status
-    if (req.originalUrl.startsWith('/api/')) {
-        return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+
+    try {
+        // Verify the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded.user; // Attach user payload to the request
+        next();
+    } catch (err) {
+        // If token is invalid, clear the cookie and redirect/send error
+        if (req.originalUrl.startsWith('/api/')) {
+            return res.status(401).json({ message: 'Token is not valid.' });
+        }
+        res.clearCookie('token').redirect('/');
     }
-    // For page requests, redirect to the login page
-    res.redirect('/');
 };
 
 
@@ -81,26 +84,47 @@ const userSchema = new mongoose.Schema({
     society: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Society' }],
 });
 
+// Pre-save hook to hash user password
+userSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) {
+        return next();
+    }
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+});
+
 const staffSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    // MODIFIED: Email is no longer required, but if provided, must be unique.
+    email: { type: String, unique: true, sparse: true },
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     society: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Society' }],
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true }
 }, { timestamps: true });
 
-// An embedded schema for addresses to support multiple addresses per customer
+// Pre-save hook to hash staff password
+staffSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) {
+        return next();
+    }
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+});
+
 const embeddedAddressSchema = new mongoose.Schema({
-    address: { type: String, required: true }, // e.g., "Flat 101, Block A"
+    address: { type: String, required: true },
     society: { type: mongoose.Schema.Types.ObjectId, ref: 'Society', required: true },
+    pincode: { type: String, required: true },
     isCurrent: { type: Boolean, default: false }
-}, { _id: true }); // Give each address a unique ID
+}, { _id: true });
 
 const customerSchema = new mongoose.Schema({
     customerName: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
-    addresses: [embeddedAddressSchema] // Replaces the old 'address' and 'society' fields
+    addresses: [embeddedAddressSchema]
 }, { timestamps: true });
 
 
@@ -117,11 +141,11 @@ const serviceSchema = new mongoose.Schema({
     },
     pricePerKg: {
         type: Number,
-        required: function() { return this.pricingModel === 'PerKg'; }
+        required: function () { return this.pricingModel === 'PerKg'; }
     },
     pricePerPair: {
         type: Number,
-        required: function() { return this.pricingModel === 'PerPair'; }
+        required: function () { return this.pricingModel === 'PerPair'; }
     },
     subcategories: [{
         itemName: { type: String, required: true },
@@ -140,11 +164,9 @@ const slotSchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema({
     customerID: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
-
-    // Address snapshot fields to ensure historical order data is immutable
     deliveryAddress: { type: String, required: true },
     deliverySociety: { type: String, required: true },
-
+    deliveryPincode: { type: String },
     orderSource: { type: String, enum: ['Call', 'Walk-in'], default: 'Call' },
     deliveryType: { type: String, enum: ['Store Pick-up', 'Home Delivery'], default: 'Home Delivery' },
     items: [{
@@ -170,8 +192,8 @@ const orderSchema = new mongoose.Schema({
     paymentStatus: { type: String, enum: ['Pending', 'Confirmed'], default: 'Pending' },
     paymentMethod: { type: String, enum: ['Cash', 'Credit-Card', 'Debit-Card', 'UPI'], default: 'Cash' },
     transactionID: { type: String },
-    pickupDate: { type: Date, required: true },
-    pickupSlot: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot', required: true },
+    pickupDate: { type: Date },
+    pickupSlot: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot' },
     pickupAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
     pickupAgentName: { type: String },
     deliveryDate: { type: Date },
@@ -196,7 +218,7 @@ const Slot = mongoose.model('Slot', slotSchema);
 
 async function seedRoles() {
     try {
-        const roles = ["Pickup Agent", "Delivery Agent", "Staff"];
+        const roles = ["Ironmen", "Delivery Agent", "Supervisor", "Washermen"];
         for (let roleName of roles) {
             if (!(await Role.findOne({ role_name: roleName }))) {
                 await Role.create({ role_name: roleName });
@@ -268,13 +290,13 @@ async function seedServices() {
                     existingService.expressPriceMultiplier = service.expressPriceMultiplier;
                     needsUpdate = true;
                 }
-                 if (service.pricingModel === 'PerItem') {
+                if (service.pricingModel === 'PerItem') {
                     const hasOthers = existingService.subcategories.some(sub => sub.itemName === 'Others');
                     if (!hasOthers) {
                         const othersSubCategory = service.subcategories.find(sub => sub.itemName === 'Others');
                         if (othersSubCategory) {
-                           existingService.subcategories.push(othersSubCategory);
-                           needsUpdate = true;
+                            existingService.subcategories.push(othersSubCategory);
+                            needsUpdate = true;
                         }
                     }
                 }
@@ -323,34 +345,46 @@ app.get('/staff.html', isAuthenticated, (req, res) => res.sendFile(path.join(__d
 app.get('/services.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'services.html')));
 
 
+// Login route now uses bcrypt and issues a JWT cookie
 app.post('/login', async (req, res) => {
     try {
-        const user = await User.findOne({ email: req.body.email });
-        if (!user || req.body.password !== user.password) {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
+        if (!user) {
             return res.status(401).send('Invalid credentials.');
         }
 
-        req.session.user = {
-            id: user._id,
-            email: user.email,
-            role: user.role
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).send('Invalid credentials.');
+        }
+
+        const payload = {
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role
+            }
         };
 
-        res.redirect('/home.html');
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 1000 * 60 * 60 * 24 // 1 day
+        }).redirect('/home.html');
+
     } catch (error) {
+        console.error(error);
         res.status(500).send('Server error during login.');
     }
 });
 
 
-
+// Logout route now clears the JWT cookie
 app.get('/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) {
-            return res.status(500).send('Could not log out.');
-        }
-        res.redirect('/');
-    });
+    res.clearCookie('token').redirect('/');
 });
 
 
@@ -462,22 +496,47 @@ app.get('/api/staff', async (req, res) => {
 
 app.post('/api/staff', async (req, res) => {
     try {
+        // If email is an empty string, remove it so the sparse index works correctly
+        if (req.body.email === '') {
+            delete req.body.email;
+        }
         const newStaff = new Staff(req.body);
         await newStaff.save();
         const populatedStaff = await Staff.findById(newStaff._id).populate('role').populate('society');
         res.status(201).json(populatedStaff);
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'Email or phone number already in use.' });
+        }
         res.status(500).json({ message: 'Error adding staff member.' });
     }
 });
 
 app.put('/api/staff/:id', async (req, res) => {
     try {
-        const updatedStaff = await Staff.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+        const staff = await Staff.findById(req.params.id);
+        if (!staff) {
+            return res.status(404).json({ message: 'Staff not found.' });
+        }
+
+        const updateData = req.body;
+        // If email is an empty string, set it to null/undefined to clear it
+        if (updateData.email === '') {
+            updateData.email = undefined; 
+        }
+
+        Object.assign(staff, updateData);
+
+        const updatedStaff = await staff.save();
+
+        const populatedStaff = await Staff.findById(updatedStaff._id)
             .populate('role').populate('society');
-        if (!updatedStaff) return res.status(404).json({ message: 'Staff not found.' });
-        res.json(updatedStaff);
+
+        res.json(populatedStaff);
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'Email or phone number already in use.' });
+        }
         res.status(500).json({ message: 'Error updating staff.' });
     }
 });
@@ -528,18 +587,16 @@ app.get('/api/customers', async (req, res) => {
             return acc;
         }, {});
 
-        // Populate society within the addresses array
         const customers = await Customer.find({}).populate('addresses.society').lean();
 
         const customersWithStats = customers.map(customer => {
             const stats = statsMap[customer._id.toString()];
-            // Find the current address to display in the main list
             const currentAddress = customer.addresses?.find(a => a.isCurrent) || customer.addresses?.[0];
             return {
                 ...customer,
-                // Add top-level fields for easy access on the frontend list
                 currentAddress: currentAddress ? currentAddress.address : 'N/A',
                 currentSociety: currentAddress ? currentAddress.society : { name: 'N/A' },
+                currentPincode: currentAddress ? currentAddress.pincode : 'N/A',
                 orderCount: stats ? stats.orderCount : 0,
                 totalSpent: stats ? stats.totalSpent : 0
             };
@@ -557,11 +614,11 @@ app.get('/api/customers/:id/orders', async (req, res) => {
     try {
         const customerId = req.params.id;
         const orders = await Order.find({ customerID: customerId })
-            .select('orderedOn billAmount orderStatus items')
+            .select('orderedOn billAmount orderStatus items deliveryAddress deliverySociety deliveryPincode')
             .populate({
                 path: 'items.serviceCategoryID',
                 select: 'categoryName'
-             })
+            })
             .sort({ orderedOn: -1 });
 
         if (!orders) {
@@ -574,18 +631,17 @@ app.get('/api/customers/:id/orders', async (req, res) => {
     }
 });
 
-
 app.post('/api/customers', async (req, res) => {
     try {
-        const { customerName, phone, address, society } = req.body;
+        const { customerName, phone, address, society, pincode } = req.body;
 
-        // Create a new customer with their first address set as current
         const newCustomerData = {
             customerName,
             phone,
             addresses: [{
                 address,
                 society,
+                pincode,
                 isCurrent: true
             }]
         };
@@ -603,21 +659,19 @@ app.post('/api/customers', async (req, res) => {
 
 app.put('/api/customers/:id', async (req, res) => {
     try {
-        const { customerName, phone, address, society } = req.body;
+        const { customerName, phone, address, society, pincode } = req.body;
         const customer = await Customer.findById(req.params.id);
         if (!customer) return res.status(404).json({ message: 'Customer not found.' });
 
         customer.customerName = customerName;
         customer.phone = phone;
 
-        // This is a simplified update. A full implementation would manage the whole array.
-        // Here, we update the first address, assuming it's the one being edited.
         if (customer.addresses && customer.addresses.length > 0) {
             customer.addresses[0].address = address;
             customer.addresses[0].society = society;
+            customer.addresses[0].pincode = pincode;
         } else {
-            // If no address exists, add one
-            customer.addresses.push({ address, society, isCurrent: true });
+            customer.addresses.push({ address, society, pincode, isCurrent: true });
         }
 
         await customer.save();
@@ -681,9 +735,9 @@ app.get('/api/orders', async (req, res) => {
         const orders = await Order.find({})
             .populate({
                 path: 'customerID',
-                select: 'customerName phone', // Address is now in the order, so we only need basic info
+                select: 'customerName phone',
             })
-            .populate('items.serviceCategoryID', 'categoryName pricingModel')
+            .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot', 'slotName')
             .sort({ orderedOn: -1 });
         res.json(orders);
@@ -698,7 +752,7 @@ app.get('/api/orders/:id', async (req, res) => {
         const order = await Order.findById(req.params.id)
             .populate({
                 path: 'customerID',
-                select: 'customerName phone' // Only need basic customer info
+                select: 'customerName phone'
             })
             .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot')
@@ -713,29 +767,29 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-    // Contains common info like customerID, pickupDate, agent, etc.
-    const { customerID, items, pickupDate, pickupSlot, pickupAgent } = req.body;
+    const { customerID, items, pickupDate, pickupSlot, pickupAgent, orderSource } = req.body;
 
     try {
-        // === 1. Initial Validations (Unchanged) ===
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'Order must contain at least one item.' });
         }
-        // Slot capacity check
-        const slot = await Slot.findById(pickupSlot);
-        if (!slot) return res.status(400).json({ message: 'Invalid pickup slot selected.' });
-        const targetDate = new Date(pickupDate);
-        const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
-        const endDate = new Date(startDate);
-        endDate.setUTCDate(startDate.getUTCDate() + 1);
-        const pickupCount = await Order.countDocuments({
-            pickupSlot: pickupSlot,
-            pickupDate: { $gte: startDate, $lt: endDate }
-        });
-        if (pickupCount >= slot.maxCapacity) {
-            return res.status(400).json({ message: `Pickup slot for this date is full. Please choose another.` });
+
+        if (orderSource === 'Call') {
+            const slot = await Slot.findById(pickupSlot);
+            if (!slot) return res.status(400).json({ message: 'Invalid pickup slot selected.' });
+            const targetDate = new Date(pickupDate);
+            const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
+            const endDate = new Date(startDate);
+            endDate.setUTCDate(startDate.getUTCDate() + 1);
+            const pickupCount = await Order.countDocuments({
+                pickupSlot: pickupSlot,
+                pickupDate: { $gte: startDate, $lt: endDate }
+            });
+            if (pickupCount >= slot.maxCapacity) {
+                return res.status(400).json({ message: `Pickup slot for this date is full. Please choose another.` });
+            }
         }
-        // Address snapshot logic
+
         const customer = await Customer.findById(customerID).populate('addresses.society');
         if (!customer) return res.status(404).json({ message: 'Customer not found.' });
         const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
@@ -743,9 +797,8 @@ app.post('/api/orders', async (req, res) => {
             return res.status(400).json({ message: 'Customer does not have a current address set.' });
         }
 
-        // === 2. Group Items by Service Type (New Logic) ===
         const itemGroups = items.reduce((groups, item) => {
-            const type = item.serviceType; // 'Standard' or 'Express'
+            const type = item.serviceType;
             if (!groups[type]) {
                 groups[type] = [];
             }
@@ -755,11 +808,9 @@ app.post('/api/orders', async (req, res) => {
 
         const createdOrders = [];
 
-        // === 3. Loop Through Groups and Create an Order for Each ===
         for (const serviceType in itemGroups) {
             const groupItems = itemGroups[serviceType];
-            
-            // --- Re-usable Price Calculation & Validation Logic ---
+
             let serverCalculatedBill = 0;
             const processedItems = [];
             for (const item of groupItems) {
@@ -773,25 +824,25 @@ app.post('/api/orders', async (req, res) => {
 
                 switch (service.pricingModel) {
                     case 'PerKg':
-                        if(!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({message: 'Weight is required for PerKg items.'});
+                        if (!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({ message: 'Weight is required for PerKg items.' });
                         const pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
                         currentItemTotal = item.weightInKg * pricePerKg;
                         processedItem.weightInKg = item.weightInKg;
                         processedItem.pricePerKg = pricePerKg;
                         break;
                     case 'PerPair':
-                         if(!item.pairCount || item.pairCount <= 0) return res.status(400).json({message: 'Pair count is required for PerPair items.'});
+                        if (!item.pairCount || item.pairCount <= 0) return res.status(400).json({ message: 'Pair count is required for PerPair items.' });
                         const pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
                         currentItemTotal = item.pairCount * pricePerPair;
                         processedItem.pairCount = item.pairCount;
                         processedItem.pricePerPair = pricePerPair;
                         break;
                     case 'PerItem':
-                        if(!item.subItems || item.subItems.length === 0) return res.status(400).json({message: 'Sub-items are required for PerItem services.'});
+                        if (!item.subItems || item.subItems.length === 0) return res.status(400).json({ message: 'Sub-items are required for PerItem services.' });
                         processedItem.subItems = [];
                         for (const sub of item.subItems) {
                             const serviceSubItem = service.subcategories.find(s => s.itemName === sub.itemName);
-                            if (!serviceSubItem) return res.status(400).json({ message: `Invalid sub-item: ${sub.itemName}`});
+                            if (!serviceSubItem) return res.status(400).json({ message: `Invalid sub-item: ${sub.itemName}` });
                             const pricePerItem = sub.pricePerItem || (serviceSubItem.price * multiplier);
                             currentItemTotal += sub.quantity * pricePerItem;
                             processedItem.subItems.push({ itemName: sub.itemName, quantity: sub.quantity, pricePerItem });
@@ -803,24 +854,28 @@ app.post('/api/orders', async (req, res) => {
                 processedItems.push(processedItem);
                 serverCalculatedBill += currentItemTotal;
             }
-            // --- End of Price Logic ---
 
-            // --- Create the Order Document ---
             const newOrderData = {
-                ...req.body, // Contains common info like customerID, pickupDate, etc.
+                ...req.body,
                 items: processedItems,
                 billAmount: serverCalculatedBill,
                 deliveryAddress: currentAddress.address,
                 deliverySociety: currentAddress.society.name,
+                deliveryPincode: currentAddress.pincode,
             };
 
-            if (pickupAgent) {
+            if (orderSource === 'Walk-in') {
+                newOrderData.orderStatus = 'In-Progress';
+                delete newOrderData.pickupDate;
+                delete newOrderData.pickupSlot;
+                delete newOrderData.pickupAgent;
+            } else if (pickupAgent) { // This is for 'Call'
                 const agent = await Staff.findById(pickupAgent);
                 if (agent) {
                     newOrderData.pickupAgentName = agent.name;
                     newOrderData.orderStatus = 'Pick-up Pending';
                 }
-            } else {
+            } else { // 'Call' with no agent assigned yet
                 newOrderData.orderStatus = 'New';
             }
 
@@ -830,11 +885,10 @@ app.post('/api/orders', async (req, res) => {
                 .populate('customerID', 'customerName')
                 .populate('items.serviceCategoryID', 'categoryName')
                 .populate('pickupSlot', 'slotName');
-            
+
             createdOrders.push(populatedOrder);
         }
 
-        // === 4. Send Array of Created Orders as Response ===
         res.status(201).json(createdOrders);
 
     } catch (error) {
@@ -852,21 +906,69 @@ app.put('/api/orders/:id', async (req, res) => {
 
         if (updateData.pickupAgent) {
             const agent = await Staff.findById(updateData.pickupAgent);
-            if(agent) updateData.pickupAgentName = agent.name;
+            if (agent) updateData.pickupAgentName = agent.name;
             else {
-               updateData.pickupAgentName = null;
+                updateData.pickupAgentName = null;
             }
         }
 
         if (updateData.deliveryAgent) {
             const agent = await Staff.findById(updateData.deliveryAgent);
-            if(agent) updateData.deliveryAgentName = agent.name;
+            if (agent) updateData.deliveryAgentName = agent.name;
             else {
-               updateData.deliveryAgentName = null;
+                updateData.deliveryAgentName = null;
             }
         }
 
-        // Prevent address from being updated on an existing order
+        if (updateData.items) {
+            let serverCalculatedBill = 0;
+            const processedItems = [];
+            for (const item of updateData.items) {
+                const service = await Service.findById(item.serviceCategoryID);
+                if (!service) return res.status(400).json({ message: `Invalid service ID: ${item.serviceCategoryID}` });
+
+                const isExpress = item.serviceType === 'Express';
+                const multiplier = isExpress ? (service.expressPriceMultiplier || 2) : 1;
+                let currentItemTotal = 0;
+                const processedItem = { serviceCategoryID: service._id, serviceType: item.serviceType };
+
+                switch (service.pricingModel) {
+                    case 'PerKg':
+                        if (!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({ message: 'Weight is required for PerKg items.' });
+                        const pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
+                        currentItemTotal = item.weightInKg * pricePerKg;
+                        processedItem.weightInKg = item.weightInKg;
+                        processedItem.pricePerKg = pricePerKg;
+                        break;
+                    case 'PerPair':
+                        if (!item.pairCount || item.pairCount <= 0) return res.status(400).json({ message: 'Pair count is required for PerPair items.' });
+                        const pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
+                        currentItemTotal = item.pairCount * pricePerPair;
+                        processedItem.pairCount = item.pairCount;
+                        processedItem.pricePerPair = pricePerPair;
+                        break;
+                    case 'PerItem':
+                        if (!item.subItems || item.subItems.length === 0) return res.status(400).json({ message: 'Sub-items are required for PerItem services.' });
+                        processedItem.subItems = [];
+                        for (const sub of item.subItems) {
+                            const serviceSubItem = service.subcategories.find(s => s.itemName === sub.itemName);
+                            if (!serviceSubItem) return res.status(400).json({ message: `Invalid sub-item: ${sub.itemName}` });
+                            const pricePerItem = sub.pricePerItem || (serviceSubItem.price * multiplier);
+                            currentItemTotal += sub.quantity * pricePerItem;
+                            processedItem.subItems.push({ itemName: sub.itemName, quantity: sub.quantity, pricePerItem });
+                        }
+                        break;
+                    default: return res.status(400).json({ message: 'Unknown pricing model.' });
+                }
+                processedItem.itemTotal = currentItemTotal;
+                processedItems.push(processedItem);
+                serverCalculatedBill += currentItemTotal;
+            }
+            updateData.items = processedItems;
+            updateData.billAmount = serverCalculatedBill;
+        }
+
+
         delete updateData.deliveryAddress;
         delete updateData.deliverySociety;
 
@@ -874,7 +976,7 @@ app.put('/api/orders/:id', async (req, res) => {
         if (!updatedOrder) return res.status(404).json({ message: 'Order not found.' });
 
         const populatedOrder = await Order.findById(updatedOrder._id)
-             .populate({
+            .populate({
                 path: 'customerID',
                 select: 'customerName phone',
             })
@@ -913,6 +1015,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
         }
 
         const dateFilter = { orderedOn: { $gte: startDate, $lte: endDate } };
+
         const totalOrders = await Order.countDocuments(dateFilter);
 
         const revenueData = await Order.aggregate([
@@ -921,13 +1024,19 @@ app.get('/api/dashboard/stats', async (req, res) => {
         ]);
         const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
 
+        const pendingRevenueData = await Order.aggregate([
+            { $match: { ...dateFilter, paymentStatus: 'Pending' } },
+            { $group: { _id: null, total: { $sum: '$billAmount' } } }
+        ]);
+        const pendingRevenue = pendingRevenueData.length > 0 ? pendingRevenueData[0].total : 0;
+
         const activeCustomers = await Order.distinct('customerID', dateFilter);
-        const societiesData = await Customer.find({ _id: { $in: activeCustomers } }).populate('addresses.society');
-        const activeSocieties = new Set(societiesData.flatMap(c => c.addresses.map(a => a.society?.name)).filter(Boolean));
+
         const orderStatusBreakdown = await Order.aggregate([
             { $match: dateFilter },
             { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
         ]);
+
         const recentOrders = await Order.find(dateFilter)
             .sort({ orderedOn: -1 })
             .limit(5)
@@ -939,8 +1048,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
         res.json({
             totalOrders,
             totalRevenue,
+            pendingRevenue,
             totalActiveCustomers: activeCustomers.length,
-            totalActiveSocieties: activeSocieties.size,
             orderStatusBreakdown,
             recentOrders
         });

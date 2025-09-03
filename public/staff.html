@@ -1,61 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WashX - Staff Management</title>
-<link rel="stylesheet" href="/styles/style.css">
-<style>
-    /* Added styles for the new checkbox group */
-    .checkbox-group {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        border: 1px solid #d1d5db; /* Light gray border */
-        padding: 12px;
-        border-radius: 6px;
-        max-height: 160px;
-        overflow-y: auto;
-        background-color: #fff;
-    }
-    .checkbox-item {
-        display: flex;
-        align-items: center;
-        gap: 8px; /* Space between checkbox and label */
-    }
-    .checkbox-item label {
-        font-weight: normal;
-        color: #374151; /* Darker gray text */
-    }
-    .checkbox-item input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        accent-color: #4f46e5; /* Consistent theme color */
-    }
-    
-    /* ADDED: Styles for the logout button */
-    .sidebar { display: flex; flex-direction: column; }
-    .sidebar-footer {
-        margin-top: auto;
-        padding: 10px 15px;
-    }
-    .logout-link {
-        display: flex;
-        align-items: center;
-        text-decoration: none;
-        color: #d1d5db;
-        padding: 12px 15px;
-        border-radius: 8px;
-        transition: background-color 0.2s, color 0.2s;
-        font-weight: 500;
-    }
-    .logout-link .nav-icon { margin-right: 12px; }
-    .logout-link:hover {
-        background-color: #be123c; /* A red color for logout */
-        color: #fff;
-    }
-</style>
+    <link rel="stylesheet" href="/styles/style.css">
+    <style>
+        /* Added styles for the new checkbox group */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            border: 1px solid #d1d5db;
+            /* Light gray border */
+            padding: 12px;
+            border-radius: 6px;
+            max-height: 160px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            /* Space between checkbox and label */
+        }
+
+        .checkbox-item label {
+            font-weight: normal;
+            color: #374151;
+            /* Darker gray text */
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #4f46e5;
+            /* Consistent theme color */
+        }
+
+        /* ADDED: Styles for the logout button */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 15px;
+        }
+
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+
+        .logout-link .nav-icon {
+            margin-right: 12px;
+        }
+
+        .logout-link:hover {
+            background-color: #be123c;
+            /* A red color for logout */
+            color: #fff;
+        }
+    </style>
 </head>
+
 <body>
     <nav class="sidebar">
         <div>
@@ -63,7 +82,7 @@
                 <div class="logo-icon">WX</div>
                 <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
             </div>
-            
+
             <ul class="nav-menu">
                 <li class="nav-item">
                     <a href="/home.html" class="nav-link">
@@ -134,7 +153,7 @@
             <div class="spinner"></div>
             <span style="margin-left: 12px;">Loading staff...</span>
         </div>
-        
+
         <div class="staff-grid" id="staffGrid" style="display: none;"></div>
     </main>
 
@@ -144,23 +163,29 @@
                 <h2 class="modal-title" id="modalTitle">Add Staff Member</h2>
                 <button class="close-button" id="closeModalBtn">&times;</button>
             </div>
-            
+
             <form id="staffForm">
                 <input type="hidden" id="staff-id" name="id">
-                <div class="form-group"><label class="form-label" for="phone">Phone Number</label><input type="tel" class="form-input" id="phone" name="phone" required></div>
-                <div class="form-group"><label class="form-label" for="name">Full Name</label><input type="text" class="form-input" id="name" name="name" required></div>
-                <div class="form-group"><label class="form-label" for="email">Email Address</label><input type="email" class="form-input" id="email" name="email" required></div>
+                <div class="form-group"><label class="form-label" for="phone">Phone Number</label><input type="tel"
+                        class="form-input" id="phone" name="phone" required></div>
+                <div class="form-group"><label class="form-label" for="name">Full Name</label><input type="text"
+                        class="form-input" id="name" name="name" required></div>
+                <div class="form-group"><label class="form-label" for="email">Email Address (Optional)</label><input type="email"
+                        class="form-input" id="email" name="email"></div>
                 <div class="form-group" id="passwordGroup">
                     <label class="form-label" for="password">Password</label>
                     <input type="password" class="form-input" id="password" name="password">
-                    <small style="color: #9ca3af; font-size: 12px; margin-top: 4px; display: block;">Required for new staff. Leave blank to keep current password when editing.</small>
+                    <small style="color: #9ca3af; font-size: 12px; margin-top: 4px; display: block;">Required for new
+                        staff. Leave blank to keep current password when editing.</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="role">Role</label>
-                    <select class="form-select" id="role" name="role" required><option value="">Loading roles...</option></select>
+                    <select class="form-select" id="role" name="role" required>
+                        <option value="">Loading roles...</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Assigned Societies</label>
+                    <label class="form-label">Assigned Stores</label>
                     <div id="societyCheckboxContainer" class="checkbox-group">
                         <p style="color: #6b7280; grid-column: 1 / -1;">Loading societies...</p>
                     </div>
@@ -210,13 +235,13 @@
                 if (response.status === 401) return window.location.href = '/'; // MODIFIED: Handle session expiry
                 if (!response.ok) throw new Error('Failed to fetch societies');
                 const societies = await response.json();
-                
-                societyContainer.innerHTML = ''; 
+
+                societyContainer.innerHTML = '';
                 if (societies.length === 0) {
                     societyContainer.innerHTML = '<p style="color: #6b7280; grid-column: 1 / -1;">No societies found.</p>';
                     return;
                 }
-                
+
                 societies.forEach(society => {
                     const checkboxId = `society-${society._id}`;
                     societyContainer.innerHTML += `
@@ -244,7 +269,7 @@
         function generateStaffId(mongoId) {
             return `STF-${mongoId.slice(-6).toUpperCase()}`;
         }
-        
+
         function renderStaffCards(data = currentStaffList) {
             const staffGrid = document.getElementById('staffGrid');
             if (data.length === 0) {
@@ -253,8 +278,8 @@
             }
             staffGrid.innerHTML = data.map((staff) => {
                 const roleName = staff.role ? staff.role.role_name : 'Unassigned';
-                const societyNames = (staff.society && staff.society.length > 0) 
-                    ? staff.society.map(s => s.name).join(', ') 
+                const societyNames = (staff.society && staff.society.length > 0)
+                    ? staff.society.map(s => s.name).join(', ')
                     : 'N/A';
 
                 return `
@@ -266,19 +291,18 @@
                         </div>
                         <div class="staff-actions">
                             <button class="action-btn edit-btn" onclick="openModalForEdit('${staff._id}')" title="Edit">✏️</button>
-                            <button class="action-btn delete-btn" onclick="deleteStaff('${staff._id}')" title="Delete">🗑️</button>
-                        </div>
+                         </div>
                     </div>
                     <div class="role-badge">${roleName}</div>
                     <div class="contact-info">
                         <div class="contact-item"><span class="contact-icon">📞</span> ${staff.phone || 'N/A'}</div>
-                        <div class="contact-item"><span class="contact-icon">📧</span> ${staff.email}</div>
+                        <div class="contact-item"><span class="contact-icon">📧</span> ${staff.email || 'N/A'}</div>
                         <div class="contact-item"><span class="contact-icon">📍</span> ${societyNames}</div>
                     </div>
                 </div>`;
             }).join('');
         }
-        
+
         // =================================================================
         //                 FETCH & DELETE OPERATIONS
         // =================================================================
@@ -286,11 +310,11 @@
             try {
                 document.getElementById('loadingState').style.display = 'flex';
                 document.getElementById('staffGrid').style.display = 'none';
-                
+
                 const response = await fetch('/api/staff');
                 if (response.status === 401) return window.location.href = '/'; // MODIFIED: Handle session expiry
                 if (!response.ok) throw new Error(`Network Error: ${response.statusText}`);
-                
+
                 currentStaffList = await response.json();
                 renderStaffCards();
             } catch (error) {
@@ -329,14 +353,14 @@
         window.openModalForEdit = (id) => {
             const staff = currentStaffList.find(s => s._id === id);
             if (!staff) return;
-            
+
             staffForm.reset();
             modalTitle.textContent = 'Edit Staff Member';
             submitBtn.textContent = 'Save Changes';
-            
+
             staffIdInput.value = staff._id;
             document.getElementById('name').value = staff.name;
-            document.getElementById('email').value = staff.email;
+            document.getElementById('email').value = staff.email || '';
             document.getElementById('phone').value = staff.phone || '';
             document.getElementById('role').value = staff.role ? staff.role._id : '';
             document.getElementById('password').required = false;
@@ -346,7 +370,7 @@
             societyCheckboxes.forEach(checkbox => {
                 checkbox.checked = selectedSocietyIds.includes(checkbox.value);
             });
-            
+
             staffModal.style.display = 'block';
         };
 
@@ -363,11 +387,13 @@
             const data = {};
             for (let [key, value] of formData.entries()) {
                 if (key !== 'society') {
+                    // Don't include empty optional fields in the payload
+                    if (key === 'email' && !value) continue;
                     data[key] = value;
                 }
             }
             data.society = formData.getAll('society');
-            
+
             const id = data.id;
             const method = id ? 'PUT' : 'POST';
             const url = id ? `/api/staff/${id}` : '/api/staff';
@@ -384,14 +410,14 @@
                 });
                 if (response.status === 401) return window.location.href = '/'; // MODIFIED: Handle session expiry
                 if (!response.ok) throw new Error((await response.json()).message);
-                
+
                 closeModal();
                 fetchStaff();
             } catch (error) {
                 alert(`Error: ${error.message}`);
             }
         });
-        
+
         // =================================================================
         //                   EVENT LISTENERS & INITIALIZATION
         // =================================================================
@@ -409,9 +435,9 @@
                 ]);
                 await fetchStaff();
             } catch (error) {
-                if(error.message.includes("401")) {
-                     alert('Your session has expired. Please log in again.');
-                     window.location.href = '/';
+                if (error.message.includes("401")) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/';
                 }
             }
         }
@@ -419,4 +445,5 @@
         initializePage();
     </script>
 </body>
+
 </html>

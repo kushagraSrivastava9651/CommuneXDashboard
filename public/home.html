@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,41 +9,108 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Custom styles for the new dashboard UI */
-        .date-filter-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .date-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
         .date-filter-group .filter-btn {
-            background-color: #43444a; border: 1px solid #5a5b61; color: #e5e7eb;
-            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;
+            background-color: #43444a;
+            border: 1px solid #5a5b61;
+            color: #e5e7eb;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
             transition: background-color 0.2s, border-color 0.2s;
         }
-        .date-filter-group .filter-btn.active, .date-filter-group .filter-btn:hover { background-color: #4f46e5; border-color: #6366f1; color: #fff; }
+
+        .date-filter-group .filter-btn.active,
+        .date-filter-group .filter-btn:hover {
+            background-color: #4f46e5;
+            border-color: #6366f1;
+            color: #fff;
+        }
+
         .date-filter-group .date-input {
-            background-color: #374151; border: 1px solid #4b5563; color: #e5e7eb;
-            padding: 7px 12px; border-radius: 6px;
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            color: #e5e7eb;
+            padding: 7px 12px;
+            border-radius: 6px;
         }
-        .stat-value { font-size: 2.25rem; }
-        .dashboard-section { min-height: 200px; }
-        .chart-container { position: relative; height: 300px; margin-top: 20px; }
+
+        .stat-value {
+            font-size: 2.25rem;
+        }
+
+        .dashboard-section {
+            min-height: 200px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
         .loading-overlay {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(30, 41, 59, 0.5); z-index: 10;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 12px; backdrop-filter: blur(2px);
-            opacity: 0; transition: opacity 0.2s; pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(30, 41, 59, 0.5);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
         }
-        .loading-overlay.visible { opacity: 1; pointer-events: auto; }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .loader {
-            border: 4px solid #4b5563; border-top-color: #6366f1;
-            border-radius: 50%; width: 40px; height: 40px;
+            border: 4px solid #4b5563;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
         /* ADDED: Styles for the logout button */
-        .sidebar { display: flex; flex-direction: column; justify-content: space-between; }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
         .sidebar-footer {
             padding: 10px 15px;
-            border-top: 1px solid #374151; /* Optional: adds a nice separator */
+            border-top: 1px solid #374151;
+            /* Optional: adds a nice separator */
         }
+
         .logout-link {
             display: flex;
             align-items: center;
@@ -53,25 +121,48 @@
             transition: background-color 0.2s, color 0.2s;
             font-weight: 500;
         }
-        .logout-link .nav-icon { margin-right: 12px; }
+
+        .logout-link .nav-icon {
+            margin-right: 12px;
+        }
+
         .logout-link:hover {
-            background-color: #be123c; /* A distinct red color for logout action */
+            background-color: #be123c;
+            /* A distinct red color for logout action */
             color: #fff;
         }
     </style>
 </head>
+
 <body>
     <nav class="sidebar">
         <div>
-            <div class="logo"><div class="logo-icon">WX</div><div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div></div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
             <ul class="nav-menu">
-                <li class="nav-item"><a href="/home.html" class="nav-link active"><div class="nav-icon">📊</div>Dashboard</a></li>
-                <li class="nav-item"><a href="/orders.html" class="nav-link"><div class="nav-icon">📦</div>Orders</a></li>
-                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
-                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🗓️</div>Slots</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
-                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+                <li class="nav-item"><a href="/home.html" class="nav-link active">
+                        <div class="nav-icon">📊</div>Dashboard
+                    </a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link">
+                        <div class="nav-icon">📦</div>Orders
+                    </a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link">
+                        <div class="nav-icon">👥</div>Customers
+                    </a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link">
+                        <div class="nav-icon">🗓️</div>Slots
+                    </a></li>
+                <li class="nav-item"><a href="#" class="nav-link">
+                        <div class="nav-icon">🔔</div>Notifications
+                    </a></li>
+                <li class="nav-item"><a href="#" class="nav-link">
+                        <div class="nav-icon">📈</div>Reports
+                    </a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link">
+                        <div class="nav-icon">👨‍💼</div>Staff
+                    </a></li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -83,14 +174,20 @@
 
     <main class="main-content">
         <header class="header">
-            <div><h1 class="page-title">Dashboard</h1></div>
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+            </div>
             <div class="user-profile">
-                <div class="profile-avatar">A</div><div><div style="font-weight: 600;">Admin</div><div style="font-size: 12px; color: #6b7280;">Operations</div></div>
+                <div class="profile-avatar">A</div>
+                <div>
+                    <div style="font-weight: 600;">Admin</div>
+                    <div style="font-size: 12px; color: #6b7280;">Operations</div>
+                </div>
             </div>
         </header>
 
         <div class="operations-header">
-             <div>
+            <div>
                 <h2 class="operations-title">Operations Overview</h2>
                 <p class="operations-subtitle">Real-time insights into your laundry operations</p>
             </div>
@@ -104,21 +201,53 @@
         </div>
 
         <div style="position: relative;">
-            <div id="loadingOverlay" class="loading-overlay"><div class="loader"></div></div>
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="loader"></div>
+            </div>
             <div class="stats-grid">
-                <div class="stat-card"><div class="stat-header"><div class="stat-icon orders">📦</div></div><div class="stat-value" id="totalOrdersStat">0</div><div class="stat-label">Total Orders</div></div>
-                <div class="stat-card"><div class="stat-header"><div class="stat-icon revenue">💰</div></div><div class="stat-value" id="totalRevenueStat">₹0</div><div class="stat-label">Revenue (Confirmed)</div></div>
-                <div class="stat-card"><div class="stat-header"><div class="stat-icon customers">👥</div></div><div class="stat-value" id="activeCustomersStat">0</div><div class="stat-label">Active Customers</div></div>
-                <div class="stat-card"><div class="stat-header"><div class="stat-icon societies">🏢</div></div><div class="stat-value" id="activeSocietiesStat">0</div><div class="stat-label">Active Societies</div></div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon revenue">💰</div>
+                    </div>
+                    <div class="stat-value" id="totalRevenueStat">₹0</div>
+                    <div class="stat-label">Revenue (Confirmed)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon revenue">💵</div>
+                    </div>
+                    <div class="stat-value" id="pendingRevenueStat">₹0</div>
+                    <div class="stat-label">Pending Revenue</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon orders">📦</div>
+                    </div>
+                    <div class="stat-value" id="totalOrdersStat">0</div>
+                    <div class="stat-label">Total Orders</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon customers">👥</div>
+                    </div>
+                    <div class="stat-value" id="activeCustomersStat">0</div>
+                    <div class="stat-label">Active Customers</div>
+                </div>
             </div>
 
             <div class="dashboard-grid">
                 <div class="dashboard-section">
-                    <div class="section-header"><h3 class="section-title">Order Status Breakdown</h3></div>
+                    <div class="section-header">
+                        <h3 class="section-title">Order Status Breakdown</h3>
+                    </div>
                     <div class="chart-container"><canvas id="orderStatusChart"></canvas></div>
                 </div>
                 <div class="dashboard-section">
-                    <div class="section-header"><h3 class="section-title">Recent Orders</h3><a href="/orders.html" class="view-all-link">View All</a></div>
+                    <div class="section-header">
+                        <h3 class="section-title">Recent Orders</h3><a href="/orders.html" class="view-all-link">View
+                            All</a>
+                    </div>
                     <div id="recentOrdersList"></div>
                 </div>
             </div>
@@ -127,9 +256,18 @@
         <div style="margin-top: 32px;">
             <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Quick Actions</h3>
             <div class="actions-grid">
-                <a href="/orders.html" class="action-card orders"><div class="action-title">Manage Orders</div><div class="action-description">View, update, and track all orders</div></a>
-                <a href="/customers.html" class="action-card customers"><div class="action-title">Add Customer</div><div class="action-description">Create new customer profiles and bookings</div></a>
-                <a href="/slots.html" class="action-card slots"><div class="action-title">Configure Slots</div><div class="action-description">Manage pickup and delivery time slots</div></a>
+                <a href="/orders.html" class="action-card orders">
+                    <div class="action-title">Manage Orders</div>
+                    <div class="action-description">View, update, and track all orders</div>
+                </a>
+                <a href="/customers.html" class="action-card customers">
+                    <div class="action-title">Add Customer</div>
+                    <div class="action-description">Create new customer profiles and bookings</div>
+                </a>
+                <a href="/slots.html" class="action-card slots">
+                    <div class="action-title">Configure Slots</div>
+                    <div class="action-description">Manage pickup and delivery time slots</div>
+                </a>
             </div>
         </div>
     </main>
@@ -156,7 +294,7 @@
                 loadingOverlay.classList.add('visible');
                 try {
                     const response = await fetch(`/api/dashboard/stats?startDate=${startDate}&endDate=${endDate}`);
-                    
+
                     if (response.status === 401) {
                         window.location.href = '/'; // Redirect to login if session is invalid
                         return;
@@ -164,7 +302,7 @@
                     if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
 
                     const stats = await response.json();
-                    
+
                     renderStats(stats);
                     renderOrderStatusChart(stats.orderStatusBreakdown);
                     renderRecentOrders(stats.recentOrders);
@@ -175,12 +313,12 @@
                     loadingOverlay.classList.remove('visible');
                 }
             };
-            
+
             const renderStats = (stats) => {
                 document.getElementById('totalOrdersStat').textContent = stats.totalOrders;
                 document.getElementById('totalRevenueStat').textContent = `₹${stats.totalRevenue.toLocaleString('en-IN')}`;
                 document.getElementById('activeCustomersStat').textContent = stats.totalActiveCustomers;
-                document.getElementById('activeSocietiesStat').textContent = stats.totalActiveSocieties;
+                document.getElementById('pendingRevenueStat').textContent = `₹${(stats.pendingRevenue || 0).toLocaleString('en-IN')}`;
             };
 
             const renderRecentOrders = (orders) => {
@@ -191,13 +329,13 @@
                 }
                 container.innerHTML = orders.map(order => {
                     const customerName = order.customerID?.customerName || 'N/A';
-                    const societyName = order.customerID?.society?.name || 'N/A';
+                    // The society name is not included in the recentOrders populate, so this would be 'N/A'
                     const statusClass = (order.orderStatus || '').toLowerCase().replace(/ /g, '-').replace('pick-up-', '');
                     return `
                     <div class="order-item">
                         <div class="order-info">
                             <h4>#${order._id.slice(-6).toUpperCase()}</h4>
-                            <div class="order-details">${customerName} • ${societyName}</div>
+                            <div class="order-details">${customerName}</div>
                         </div>
                         <div style="text-align: right;">
                             <div class="order-status ${statusClass}">${order.orderStatus}</div>
@@ -206,11 +344,11 @@
                     </div>`;
                 }).join('');
             };
-            
+
             const renderOrderStatusChart = (breakdown) => {
                 const ctx = document.getElementById('orderStatusChart').getContext('2d');
                 const statusMap = breakdown.reduce((acc, item) => ({ ...acc, [item._id]: item.count }), {});
-                
+
                 const labels = ['New', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered', 'Cancelled'];
                 const data = labels.map(label => statusMap[label] || 0);
 
@@ -218,7 +356,7 @@
                     'New': '#3b82f6', 'Pick-up Pending': '#f59e0b', 'In-Progress': '#8b5cf6',
                     'Delivery Pending': '#facc15', 'Delivered': '#22c55e', 'Cancelled': '#ef4444'
                 };
-                
+
                 if (orderStatusChart) orderStatusChart.destroy();
 
                 orderStatusChart = new Chart(ctx, {
@@ -270,15 +408,15 @@
                 dateButtons.forEach(btn => btn.classList.remove('active'));
                 fetchAndRenderDashboard(start, end);
             });
-            
+
             [startDateInput, endDateInput].forEach(input => input.addEventListener('change', () => {
-                 dateButtons.forEach(btn => btn.classList.remove('active'));
+                dateButtons.forEach(btn => btn.classList.remove('active'));
             }));
 
             // --- INITIAL LOAD ---
-            // FIXED: Changed 'new date()' to 'new Date()' to correct the typo and enable initial data fetch.
             fetchAndRenderDashboard(getStartDate(7), formatDate(new Date()));
         });
     </script>
 </body>
+
 </html>

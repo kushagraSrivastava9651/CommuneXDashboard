@@ -6,9 +6,55 @@
     <title>WashX - Customer Management</title>
     <link rel="stylesheet" href="/styles/style.css">
     <style>
+        /* ADDED: Remove default browser outlines on focus */
+        button:focus,
+        input:focus,
+        select:focus,
+        textarea:focus,
+        a:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        /* ADDED: Styles for scrollable customer list */
+        .customer-list {
+            display: flex;
+            flex-direction: column;
+            /* Adjust this value based on the height of your header + search bar + padding */
+            height: calc(100vh - 200px); 
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden; /* Important for containing the scrolling area */
+        }
+
+        #customerList {
+            overflow-y: auto; /* This makes the list of rows scrollable */
+            flex-grow: 1;
+        }
+
+        .list-header {
+            flex-shrink: 0; /* Prevents the header from shrinking */
+            background-color: #ffffff; /* Ensures text doesn't overlap on scroll */
+            z-index: 1;
+        }
+
+        /* ADDED: Remove fieldset border and padding */
+        fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* ADDED: Make the order modal content scrollable */
+        #orderModal .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+
         /* Styles for order modal item list */
         .order-items-list { border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 1rem; }
-        .order-item-row, .order-item-header { display: grid; grid-template-columns: 3fr 1fr 1fr; gap: 10px; padding: 8px 12px; align-items: center; }
+        .order-item-row, .order-item-header { display: grid; /* grid-template-columns is set inline */ gap: 10px; padding: 8px 12px; align-items: center; }
         .order-item-header { font-weight: 600; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; }
         .order-item-row:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
         .order-item-row .item-details { font-size: 0.8rem; color: #6b7280; }
@@ -165,18 +211,26 @@
             </div>
             <form id="customerForm">
                 <input type="hidden" id="customer-id" name="id">
-                 <div class="form-group"><label class="form-label" for="phone">Phone Number</label><input type="tel" class="form-input" id="phone" name="phone" required></div>
-                <div class="form-group"><label class="form-label" for="customerName">Full Name</label><input type="text" class="form-input" id="customerName" name="customerName" required></div>
-                <div class="form-group">
-                    <label class="form-label">Society</label>
-                    <div id="societySelectionContainer" class="radio-group">
-                        <p style="color: #6b7280; grid-column: 1 / -1;">Loading societies...</p>
+                <fieldset id="customerFormFieldset">
+                    <div class="form-group">
+                        <label class="form-label" for="pincode">Pincode</label>
+                        <input type="text" class="form-input" id="pincode" name="pincode" placeholder="Enter 6-digit pincode" maxlength="6" required>
+                        <p id="pincodeMessage" style="color: #ef4444; font-size: 0.8rem; margin-top: 4px; display: none;">Sorry, we do not service this area yet.</p>
                     </div>
-                </div>
-                <div class="form-group"><label class="form-label" for="address">Address (e.g., Flat No, Block)</label><input type="text" class="form-input" id="address" name="address"></div>
+                    <div class="form-group"><label class="form-label" for="phone">Phone Number</label><input type="tel" class="form-input" id="phone" name="phone" required></div>
+                    <div class="form-group"><label class="form-label" for="customerName">Full Name</label><input type="text" class="form-input" id="customerName" name="customerName" required></div>
+                    <div class="form-group">
+                        <label class="form-label">Society</label>
+                        <div id="societySelectionContainer" class="radio-group">
+                            <p style="color: #6b7280; grid-column: 1 / -1;">Enter a valid, serviceable pincode to see societies.</p>
+                        </div>
+                    </div>
+                    <div class="form-group"><label class="form-label" for="address">Address (e.g., Flat No, Block)</label><input type="text" class="form-input" id="address" name="address"></div>
+                </fieldset>
 
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="button" class="btn-primary" id="editBtn">Edit</button>
                     <button type="submit" class="btn-primary" id="submitBtn">Add Customer</button>
                 </div>
             </form>
@@ -209,7 +263,11 @@
                     </div>
                 </div>
                 
-                <div class="form-group">
+                <hr style="margin: 20px 0;">
+                
+                <h3 style="margin-bottom: 10px;">Add Service to Order</h3>
+
+                   <div class="form-group">
                     <label class="form-label" style="margin-bottom: 8px;">Service Type (for next item)</label>
                     <div class="service-type-group" id="serviceTypeGroup">
                         <label class="service-type-label">
@@ -224,11 +282,7 @@
                         </label>
                     </div>
                 </div>
-
-
-                <hr style="margin: 20px 0;">
-                  
-                <h3 style="margin-bottom: 10px;">Add Service to Order</h3>
+                
                 <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
                     <div style="flex-grow: 1;">
                         <label class="form-label" for="serviceCategorySelect">Select Service Category</label>
@@ -242,7 +296,7 @@
 
                 <h3 style="margin-top: 20px; margin-bottom: 10px;">Current Order Items</h3>
                 <div class="order-items-list">
-                    <div class="order-item-header">
+                    <div class="order-item-header" style="grid-template-columns: 3fr 1fr 1fr;">
                         <div>Service Details</div>
                         <div>Total</div>
                         <div></div>
@@ -252,24 +306,27 @@
                 <div id="orderTotal">Total Amount: ₹0.00</div>
                   
                 <hr style="margin: 20px 0;">
-                <h3 style="margin-bottom: 10px;">Schedule Pickup (Required)</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-                    <div class="form-group">
-                        <label class="form-label" for="pickupDate">Pickup Date</label>
-                        <input type="date" class="form-input" id="pickupDate" name="pickupDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="pickupSlot">Pickup Slot</label>
-                        <select class="form-select" id="pickupSlot" name="pickupSlot" required>
-                            <option value="">-- Select Slot --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="pickupAgent">Pickup Agent</label>
-                        <select class="form-select" id="pickupAgent" name="pickupAgent">
-                             <option value="">-- Assign Later --</option>
-                        </select>
-                        <small>Assigning sets status to "Pick-up Pending".</small>
+
+                <div id="pickupSection">
+                    <h3 style="margin-bottom: 10px;">Schedule Pickup (Required)</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label" for="pickupDate">Pickup Date</label>
+                            <input type="date" class="form-input" id="pickupDate" name="pickupDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="pickupSlot">Pickup Slot</label>
+                            <select class="form-select" id="pickupSlot" name="pickupSlot" required>
+                                <option value="">-- Select Slot --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="pickupAgent">Pickup Agent</label>
+                            <select class="form-select" id="pickupAgent" name="pickupAgent">
+                                 <option value="">-- Assign Later --</option>
+                            </select>
+                            <small>Assigning sets status to "Pick-up Pending".</small>
+                        </div>
                     </div>
                 </div>
 
@@ -282,15 +339,17 @@
     </div>
      
     <div id="customerOrdersModal" class="modal">
-        <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h2 class="modal-title" id="customerOrdersModalTitle">Order History</h2>
                 <button class="close-button" id="closeCustomerOrdersModalBtn">&times;</button>
             </div>
             <div class="modal-body" style="padding-top: 1rem;">
                  <div class="order-items-list">
-                    <div class="order-item-header" style="grid-template-columns: 1fr 3fr 1fr 1fr;">
+                    <div class="order-item-header" style="grid-template-columns: 1fr 1.5fr 1.2fr 3fr 1.2fr 1fr;">
+                        <div>Order ID</div>
                         <div>Order Date</div>
+                        <div>Service Type</div>
                         <div>Items Summary</div>
                         <div>Status</div>
                         <div>Amount</div>
@@ -311,22 +370,75 @@
         //                 STATE AND DOM ELEMENTS
         // =================================================================
         let currentCustomerList = [];
+        let allSocieties = [];
         let availableServices = [];
         let availableSlots = [];
         let availableAgents = [];
         let currentOrderItems = []; 
+        
+        const pincodeToSocietiesMap = {
+            '500089': ["ASBL Springs", "ASBL Spire", "Asbl landmark", "Asbl Gooff"],
+            '500032': ["Asbl landmark", "Asbl Gooff"],
+            '500000': ["Others"] 
+        };
 
         const customerModal = document.getElementById('customerModal');
         const customerForm = document.getElementById('customerForm');
         const modalTitle = document.getElementById('modalTitle');
         const submitBtn = document.getElementById('submitBtn');
         const customerIdInput = document.getElementById('customer-id');
+        const customerFormFieldset = document.getElementById('customerFormFieldset');
+        const editBtn = document.getElementById('editBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
         const orderModal = document.getElementById('orderModal');
         const orderForm = document.getElementById('orderForm');
         const searchInput = document.getElementById('searchInput');
         const customerOrdersModal = document.getElementById('customerOrdersModal');
         const serviceTypeGroup = document.getElementById('serviceTypeGroup');
+        const pincodeInput = document.getElementById('pincode');
+        const pincodeMessage = document.getElementById('pincodeMessage');
+        const societyContainer = document.getElementById('societySelectionContainer');
+        const orderSourceSelect = document.getElementById('orderSource');
+        const pickupSection = document.getElementById('pickupSection');
+        
+        // =================================================================
+        //                 PINCODE & SOCIETY LOGIC
+        // =================================================================
+        
+        function renderSocieties(societies, selectedSocietyId = null) {
+            if (societies.length === 0) {
+                societyContainer.innerHTML = `<p style="color: #6b7280; grid-column: 1 / -1;">Enter a valid, serviceable pincode to see societies.</p>`;
+                return;
+            }
+            societyContainer.innerHTML = societies.map(society => {
+                const isChecked = society._id === selectedSocietyId ? 'checked' : '';
+                return `
+                    <div class="radio-item">
+                        <input type="radio" id="society-${society._id}" name="society" value="${society._id}" required ${isChecked}>
+                        <label for="society-${society._id}">${society.name}</label>
+                    </div>`;
+            }).join('');
+        }
 
+        function handlePincodeChange() {
+            const pincode = pincodeInput.value;
+            if (pincode.length < 6) {
+                pincodeMessage.style.display = 'none';
+                renderSocieties([]);
+                return;
+            }
+            const serviceableSocietiesNames = pincodeToSocietiesMap[pincode];
+
+            if (serviceableSocietiesNames) {
+                pincodeMessage.style.display = 'none';
+                const societiesToDisplay = allSocieties.filter(society => serviceableSocietiesNames.includes(society.name));
+                renderSocieties(societiesToDisplay);
+            } else {
+                pincodeMessage.style.display = 'block';
+                renderSocieties([]);
+            }
+        }
+        
         // =================================================================
         //                 DYNAMIC DATA POPULATION
         // =================================================================
@@ -341,7 +453,7 @@
             });
 
             pickupAgentSelect.innerHTML = '<option value="">-- Assign Later --</option>';
-            const pickupAgents = availableAgents.filter(agent => agent.role.role_name === 'Pickup Agent');
+            const pickupAgents = availableAgents.filter(agent => agent.role.role_name === 'Delivery Agent');
             pickupAgents.forEach(agent => {
                 pickupAgentSelect.innerHTML += `<option value="${agent._id}">${agent.name}</option>`;
             });
@@ -358,9 +470,12 @@
             }
 
             customerListDiv.innerHTML = data.map((customer) => {
-                // Use the new top-level fields for the current address provided by the backend
-                const societyName = customer.currentSociety ? customer.currentSociety.name : 'N/A';
-                const addressLine = customer.currentAddress || 'N/A';
+                const currentAddressObj = customer.addresses?.find(a => a.isCurrent) || customer.addresses?.[0];
+                
+                const societyName = currentAddressObj?.society?.name || 'N/A';
+                const addressLine = currentAddressObj?.address || 'N/A';
+                const pincode = currentAddressObj?.pincode || 'N/A';
+                
                 const memberSince = new Date(customer.createdAt || Date.now()).toLocaleDateString("en-IN");
                 const initials = (customer.customerName || '').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
                 const safeCustomerName = customer.customerName.replace(/'/g, "\\'");
@@ -376,7 +491,7 @@
                     </div>
                     <div class="contact-cell"><span>📞 ${customer.phone || 'N/A'}</span></div>
                     <div class="location-cell">
-                        <strong>${societyName}</strong>
+                        <strong>${societyName} - ${pincode}</strong>
                         <small>${addressLine}</small>
                     </div>
                     <div class="orders-cell">
@@ -386,72 +501,89 @@
                     </div>
                     <div class="actions-cell">
                         <a href="#" onclick="openOrderModal('${customer._id}')" class="action-link" style="color: #3b82f6;">📖 Book</a>
-                        <a href="#" onclick="openModalForEdit('${customer._id}')" class="action-link">✏️ Edit</a>
-                        <a href="#" onclick="deleteCustomer('${customer._id}')" class="action-link" style="color: #ef4444;">🗑️ Delete</a>
+                        <a href="#" onclick="openModalForView('${customer._id}')" class="action-link">👁️ View</a>
                     </div>
                 </div>`;
             }).join('');
         }
           
         // =================================================================
-        //                 FETCH & DELETE OPERATIONS
-        // =================================================================
-        window.deleteCustomer = async (id) => {
-            if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) return;
-            try {
-                const response = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
-                if (response.status === 401) return window.location.href = '/';
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message);
-                }
-                await initializePage();
-            } catch (error) {
-                alert(`Error deleting customer: ${error.message}`);
-            }
-        };
-
-        // =================================================================
         //                   CUSTOMER MODAL HANDLING
         // =================================================================
+        
+        function setFormState(mode) {
+            customerFormFieldset.disabled = (mode === 'view');
+            
+            if(mode === 'view') {
+                modalTitle.textContent = 'View Customer Details';
+                submitBtn.style.display = 'none';
+                cancelBtn.textContent = 'Close';
+                editBtn.style.display = 'inline-block';
+            } else if (mode === 'edit') {
+                modalTitle.textContent = 'Edit Customer Details';
+                submitBtn.textContent = 'Save Changes';
+                submitBtn.style.display = 'inline-block';
+                cancelBtn.textContent = 'Cancel';
+                editBtn.style.display = 'none';
+            } else { // add
+                modalTitle.textContent = 'Add New Customer';
+                submitBtn.textContent = 'Add Customer';
+                submitBtn.style.display = 'inline-block';
+                cancelBtn.textContent = 'Cancel';
+                editBtn.style.display = 'none';
+            }
+        }
+        
         function openModalForAdd() {
             customerForm.reset();
             customerIdInput.value = '';
-            modalTitle.textContent = 'Add New Customer';
-            submitBtn.textContent = 'Add Customer';
+            renderSocieties([]);
+            pincodeMessage.style.display = 'none';
+            setFormState('add');
             customerModal.style.display = 'block';
         }
-
-        window.openModalForEdit = (id) => {
-            // Find the original customer object which contains the full addresses array
+        
+        window.openModalForView = (id) => {
             const customer = currentCustomerList.find(c => c._id === id);
             if (!customer) return;
 
-            // Find the current address to populate the form. Fallback to the first address.
             const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
 
-            customerForm.reset();
-            modalTitle.textContent = 'Edit Customer Details';
-            submitBtn.textContent = 'Save Changes';
+            customerForm.reset(); // Clear previous state
             customerIdInput.value = customer._id;
             document.getElementById('customerName').value = customer.customerName;
             document.getElementById('phone').value = customer.phone || '';
 
-            // Populate form with the current address details
             if (currentAddress) {
                 document.getElementById('address').value = currentAddress.address || '';
-                // The society object might be populated or just an ID, handle both cases.
                 const societyId = currentAddress.society?._id || currentAddress.society;
-                if (societyId) {
-                    const societyRadio = document.querySelector(`input[name="society"][value="${societyId}"]`);
-                    if (societyRadio) societyRadio.checked = true;
+                const foundPincode = currentAddress.pincode;
+
+                pincodeInput.value = foundPincode || '';
+                pincodeMessage.style.display = 'none';
+
+                if (foundPincode) {
+                    const societiesForPincodeNames = pincodeToSocietiesMap[foundPincode];
+                    if (societiesForPincodeNames) {
+                         const societiesForPincode = allSocieties.filter(s => societiesForPincodeNames.includes(s.name));
+                         renderSocieties(societiesForPincode, societyId);
+                    } else {
+                        renderSocieties([]);
+                    }
+                } else {
+                    renderSocieties([]);
                 }
+            } else {
+                pincodeInput.value = '';
+                renderSocieties([]);
+                pincodeMessage.style.display = 'none';
             }
             
+            setFormState('view');
             customerModal.style.display = 'block';
         };
 
-        function closeModal() {
+        function closeCustomerModal() {
             customerModal.style.display = 'none';
         }
           
@@ -471,6 +603,12 @@
             document.getElementById('orderCustomerName').textContent = customer.customerName;
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('pickupDate').setAttribute('min', today);
+            
+            // Reset view for order source
+            pickupSection.style.display = 'block';
+            document.getElementById('pickupDate').required = true;
+            document.getElementById('pickupSlot').required = true;
+
             orderModal.style.display = 'block';
         };
 
@@ -498,7 +636,7 @@
                     
                     const serviceTypeClass = item.serviceType.toLowerCase();
                     return `
-                    <div class="order-item-row" data-index="${index}">
+                    <div class="order-item-row" data-index="${index}" style="grid-template-columns: 3fr 1fr 1fr;">
                         <div>
                             <strong>
                                 ${service.categoryName}
@@ -679,7 +817,11 @@
                 listContainer.innerHTML = orders.map(order => {
                     totalSpending += order.billAmount;
                     const orderDate = new Date(order.orderedOn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                     
+                    const orderId = `#${order._id.slice(-6).toUpperCase()}`;
+                    
+                    const serviceType = order.items && order.items.length > 0 ? order.items[0].serviceType : 'Standard';
+                    const serviceTypeClass = `service-type-tag-${serviceType.toLowerCase()}`;
+                    
                     const itemSummary = order.items.map(item => {
                         const categoryName = item.serviceCategoryID ? item.serviceCategoryID.categoryName : 'Service';
                         let count = '';
@@ -693,8 +835,10 @@
                     }).join('; ');
                      
                     return `
-                    <div class="order-item-row" style="grid-template-columns: 1fr 3fr 1fr 1fr;">
+                    <div class="order-item-row" style="grid-template-columns: 1fr 1.5fr 1.2fr 3fr 1.2fr 1fr;">
+                        <div><strong>${orderId}</strong></div>
                         <div>${orderDate}</div>
+                        <div><span class="service-type-tag ${serviceTypeClass}" style="margin-left: 0;">${serviceType}</span></div>
                         <div class="item-details" style="font-size: 0.8rem; white-space: normal;">${itemSummary}</div>
                         <div><span class="status-badge status-${order.orderStatus.toLowerCase().replace(/ /g, '-')}">${order.orderStatus}</span></div>
                         <div><strong>₹${order.billAmount.toFixed(2)}</strong></div>
@@ -720,7 +864,7 @@
             const societyRadio = document.querySelector('input[name="society"]:checked');
             if (societyRadio) {
                 data.society = societyRadio.value;
-            } else if (!data.id) {
+            } else {
                 alert('Please select a society.');
                 return;
             }
@@ -734,28 +878,40 @@
                 const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) { const error = await response.json(); throw new Error(error.message); }
-                closeModal();
+                closeCustomerModal();
                 await initializePage();
             } catch (error) { alert(`Error: ${error.message}`); }
         });
           
         orderForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            if (currentOrderItems.length === 0) {
+                alert('Please add at least one service to the order.');
+                return;
+            }
+            
             const billAmount = currentOrderItems.reduce((acc, item) => acc + item.itemTotal, 0);
             const orderData = {
                 customerID: document.getElementById('order-customer-id').value,
                 deliveryType: document.getElementById('deliveryType').value,
                 orderSource: document.getElementById('orderSource').value,
-                pickupDate: document.getElementById('pickupDate').value,
-                pickupSlot: document.getElementById('pickupSlot').value,
-                pickupAgent: document.getElementById('pickupAgent').value || null,
                 items: currentOrderItems,
                 billAmount: billAmount
             };
-            if (!orderData.pickupAgent) delete orderData.pickupAgent;
-            if (orderData.items.length === 0) {
-                alert('Please add at least one service to the order.');
-                return;
+
+            if (orderData.orderSource === 'Walk-in') {
+                orderData.orderStatus = 'In-Progress';
+            } else {
+                orderData.pickupDate = document.getElementById('pickupDate').value;
+                orderData.pickupSlot = document.getElementById('pickupSlot').value;
+                orderData.pickupAgent = document.getElementById('pickupAgent').value || null;
+                
+                if (!orderData.pickupDate || !orderData.pickupSlot) {
+                    alert('Pickup Date and Slot are required for this order type.');
+                    return;
+                }
+                if (!orderData.pickupAgent) delete orderData.pickupAgent;
             }
             
             const submitBtn = document.getElementById('submitOrderBtn');
@@ -775,10 +931,7 @@
                     throw new Error(error.message);
                 }
 
-                // --- NEW: Handle the array of created orders in the response ---
                 const newOrders = await response.json();
-
-                // Create a more informative success message
                 const orderIds = newOrders.map(order => `#${order._id.slice(-6).toUpperCase()}`);
                 let alertMessage = '';
                 if (newOrders.length > 1) {
@@ -788,8 +941,6 @@
                 }
                 
                 alert(alertMessage + '\nYou will now be redirected to the orders page.');
-                // --- End of New Logic ---
-
                 closeOrderModal();
                 window.location.href = '/orders.html';
 
@@ -813,9 +964,18 @@
             renderCustomerList(filteredData);
         });
 
+        orderSourceSelect.addEventListener('change', (e) => {
+            const isWalkIn = e.target.value === 'Walk-in';
+            pickupSection.style.display = isWalkIn ? 'none' : 'block';
+            document.getElementById('pickupDate').required = !isWalkIn;
+            document.getElementById('pickupSlot').required = !isWalkIn;
+        });
+
+        pincodeInput.addEventListener('input', handlePincodeChange);
         document.getElementById('openAddModalBtn').addEventListener('click', openModalForAdd);
-        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        document.getElementById('closeModalBtn').addEventListener('click', closeCustomerModal);
+        cancelBtn.addEventListener('click', closeCustomerModal);
+        editBtn.addEventListener('click', () => setFormState('edit'));
         document.getElementById('closeOrderModalBtn').addEventListener('click', closeOrderModal);
         document.getElementById('cancelOrderBtn').addEventListener('click', closeOrderModal);
         document.getElementById('closeCustomerOrdersModalBtn').addEventListener('click', closeCustomerOrdersModal);
@@ -841,7 +1001,7 @@
         });
 
         window.addEventListener('click', (e) => {
-            if (e.target === customerModal) closeModal();
+            if (e.target === customerModal) closeCustomerModal();
             if (e.target === orderModal) closeOrderModal();
             if (e.target === customerOrdersModal) closeCustomerOrdersModal();
         });
@@ -868,13 +1028,8 @@
                 const [socRes, custRes, servRes, slotsRes, agentsRes] = responses;
 
                 // Societies
-                const societies = await socRes.json();
-                const societyContainer = document.getElementById('societySelectionContainer');
-                societyContainer.innerHTML = societies.map((society, index) => `
-                    <div class="radio-item">
-                        <input type="radio" id="society-${society._id}" name="society" value="${society._id}" ${index === 0 ? 'required' : ''}>
-                        <label for="society-${society._id}">${society.name}</label>
-                    </div>`).join('');
+                allSocieties = await socRes.json();
+                renderSocieties([]); // Initialize with empty state message
 
                 // Customers
                 currentCustomerList = await custRes.json();

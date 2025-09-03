@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/styles/style.css">
     <style>
         .order-list .list-header, .order-list .list-row {
-            grid-template-columns: 2fr 3fr 3fr 1.5fr 1.5fr 1fr;
+            grid-template-columns: 1.7fr 2fr 2.5fr 1fr 2.2fr 1.5fr 1.5fr 1fr;
             gap: 16px;
         }
         .status-badge { padding: 4px 10px; border-radius: 16px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; display: inline-block; text-align: center; }
@@ -19,7 +19,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            width: 350px; /* Increased width */
+            width: 350px;
             z-index: 100;
             font-size: 0.85rem;
         }
@@ -33,12 +33,17 @@
         .items-link:hover { text-decoration: underline; }
         #paymentDetailsSection { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background-color: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 10px; }
         .item-list-modal { border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 1rem; }
-        .item-list-header, .item-list-row { display: grid; grid-template-columns: 3fr 1fr; gap: 10px; padding: 8px 12px; align-items: center; font-size: 0.9rem; }
+        .item-list-header, .item-list-row { display: grid; grid-template-columns: 3fr 1fr auto; gap: 10px; padding: 8px 12px; align-items: center; font-size: 0.9rem; }
         .item-list-header { font-weight: 600; background-color: #f9fafb; }
         .item-list-row:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
         .item-list-row .item-details { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
         #modalTotal { text-align: right; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; }
         .schedule-info small { display: block; line-height: 1.5; color: #4b5563; }
+        
+        .modal-content {
+            max-height: 90vh; /* Limit the modal's height to 90% of the viewport height */
+            overflow-y: auto; /* Add a vertical scrollbar only when content overflows */
+        }
         
         /* Filter Styles */
         .filter-controls {
@@ -76,14 +81,13 @@
             border-radius: 6px;
             font-size: 0.875rem;
             cursor: pointer;
-            margin-left: auto; /* Pushes the button to the right */
-            align-self: flex-end; /* Aligns with the bottom of the inputs */
+            margin-left: auto;
+            align-self: flex-end;
         }
         .clear-filters-btn:hover {
             background-color: #d1d5db;
         }
 
-        /* Styles for the logout button */
         .sidebar { display: flex; flex-direction: column; }
         .sidebar-footer {
             margin-top: auto;
@@ -101,11 +105,10 @@
         }
         .logout-link .nav-icon { margin-right: 12px; }
         .logout-link:hover {
-            background-color: #be123c; /* A red color for logout */
+            background-color: #be123c;
             color: #fff;
         }
         
-        /* MODIFIED: Added styles for service type tags */
         .service-type-tag {
             display: inline-block;
             padding: 2px 8px;
@@ -117,6 +120,88 @@
         }
         .service-type-tag-standard { background-color: #e5e7eb; color: #4b5563; }
         .service-type-tag-express { background-color: #c7d2fe; color: #3730a3; }
+        
+        .location-cell-truncate {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .remove-item-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem; }
+        
+        /* Styles for service editing in modal */
+        .service-type-group { display: flex; gap: 1rem; }
+        .service-type-label {
+            display: block;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-grow: 1;
+            text-align: center;
+        }
+        .service-type-label:has(input:checked) {
+            background-color: #e0e7ff;
+            border-color: #4f46e5;
+            font-weight: 600;
+        }
+        .service-type-label input { display: none; }
+        .sub-item-row { display: grid; grid-template-columns: 1fr 90px 80px; gap: 10px; align-items: center; margin-bottom: 8px;}
+
+        /* Style for the new source tag */
+        .source-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            border-radius: 4px;
+            background-color: #f3f4f6;
+            color: #4b5563;
+            margin-left: 8px;
+            vertical-align: middle;
+            text-transform: capitalize;
+        }
+        
+        /* Styles for new Quick Filters */
+        .quick-filters {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            padding: 0 16px 16px 16px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 16px;
+        }
+        .quick-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quick-filter-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+        .quick-filter-btn {
+            background-color: #fff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .quick-filter-btn:hover {
+            background-color: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        .quick-filter-btn.active {
+            background-color: #4f46e5;
+            color: #fff;
+            border-color: #4f46e5;
+        }
     </style>
 </head>
 <body>
@@ -163,6 +248,22 @@
             </div>
         </div>
 
+        <div class="quick-filters">
+            <div class="quick-filter-group">
+                <button class="quick-filter-btn active" data-filter-group="all" data-filter-value="all">All Orders</button>
+            </div>
+            <div class="quick-filter-group">
+                <span class="quick-filter-label">Service:</span>
+                <button class="quick-filter-btn" data-filter-group="service" data-filter-value="standard">Standard</button>
+                <button class="quick-filter-btn" data-filter-group="service" data-filter-value="express">Express</button>
+            </div>
+            <div class="quick-filter-group">
+                <span class="quick-filter-label">Source:</span>
+                <button class="quick-filter-btn" data-filter-group="source" data-filter-value="call">Call/Online</button>
+                <button class="quick-filter-btn" data-filter-group="source" data-filter-value="walk-in">Walk-in</button>
+            </div>
+        </div>
+
         <div class="filter-controls">
             <div class="filter-group">
                 <label for="orderStatusFilter">Order Status</label>
@@ -202,11 +303,13 @@
            
         <div class="customer-list order-list" id="orderListContainer" style="display: none;">
             <div class="list-header">
-                <div>Order & Date</div>
+                <div>Order Info</div>
                 <div>Customer</div>
-                <div>Details</div>
+                <div>Location</div>
+                <div>Amount</div>
+                <div>Schedule</div>
                 <div>Order Status</div>
-                <div>Payment</div>
+                <div>Payment Status</div>
                 <div>Actions</div>
             </div>
             <div id="orderList"></div>
@@ -221,7 +324,7 @@
             </div>
             <form id="orderUpdateForm">
                 <input type="hidden" id="order-id-input">
-                 
+                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
                     <div>
                         <h4>Customer Information</h4>
@@ -270,40 +373,44 @@
 
                 <hr style="margin: 20px 0;">
 
-                <h4>Payment Details</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                     <div class="form-group">
-                        <label for="paymentStatus" class="form-label">Payment Status</label>
-                        <select id="paymentStatus" name="paymentStatus" class="form-select">
-                            <option value="Pending">Pending</option>
-                            <option value="Confirmed">Confirmed</option>
-                        </select>
+                <div id="paymentSectionContainer" style="display: none;">
+                    <h4>Payment Details</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label for="paymentStatus" class="form-label">Payment Status</label>
+                            <select id="paymentStatus" name="paymentStatus" class="form-select">
+                                <option value="Pending">Pending</option>
+                                <option value="Confirmed">Confirmed</option>
+                            </select>
+                        </div>
                     </div>
+                    
+                    <div id="paymentDetailsSection" style="display: none;">
+                        <div class="form-group">
+                            <label for="paymentMethod" class="form-label">Payment Method</label>
+                            <select id="paymentMethod" name="paymentMethod" class="form-select">
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Credit-Card">Credit Card</option>
+                                <option value="Debit-Card">Debit Card</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="transactionIdContainer">
+                            <label for="transactionID" class="form-label">Transaction ID (Optional)</label>
+                            <input type="text" id="transactionID" name="transactionID" class="form-input">
+                        </div>
+                    </div>
+                    <hr style="margin: 20px 0;">
                 </div>
-                   
-                <div id="paymentDetailsSection" style="display: none;">
-                     <div class="form-group">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select id="paymentMethod" name="paymentMethod" class="form-select">
-                            <option value="Cash">Cash</option>
-                            <option value="UPI">UPI</option>
-                            <option value="Credit-Card">Credit Card</option>
-                            <option value="Debit-Card">Debit Card</option>
-                        </select>
-                    </div>
-                     <div class="form-group">
-                        <label for="transactionID" class="form-label">Transaction ID (Optional)</label>
-                        <input type="text" id="transactionID" name="transactionID" class="form-input">
-                    </div>
-                </div>
-
-                <hr style="margin: 20px 0;">
-                   
+                
                 <h4>Order Items</h4>
+                <div id="itemEditingSection">
+                    </div>
                 <div class="item-list-modal">
                     <div class="item-list-header">
                         <div>Service Details</div>
                         <div>Subtotal</div>
+                        <div></div>
                     </div>
                     <div id="modalItemsContainer"></div>
                 </div>
@@ -311,16 +418,24 @@
 
                 <div class="form-actions" style="margin-top: 20px;">
                     <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button type="submit" class="btn-primary" id="saveChangesBtn">Save Changes</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script>
+<script>
         let allOrders = [];
         let availableAgents = [];
         let availableSlots = [];
+        let availableServices = [];
+        let currentModalItems = [];
+        let currentOpenOrder = null;
+        
+        // Quick filter state
+        let activeServiceFilter = 'all'; // 'all', 'standard', 'express'
+        let activeSourceFilter = 'all'; // 'all', 'call', 'walk-in'
+
         const orderListDiv = document.getElementById('orderList');
         const searchInput = document.getElementById('searchInput');
         const modal = document.getElementById('orderDetailsModal');
@@ -329,6 +444,7 @@
         const startDateFilter = document.getElementById('startDateFilter');
         const endDateFilter = document.getElementById('endDateFilter');
         const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        const quickFiltersContainer = document.querySelector('.quick-filters');
 
 
         // =================================================================
@@ -352,48 +468,6 @@
             return `<span class="payment-badge" style="background-color: ${color.bg}; color: ${color.text};">${status}</span>`;
         };
            
-        const closeActivePopover = () => {
-            const existingPopover = document.getElementById('items-popover-active');
-            if (existingPopover) existingPopover.remove();
-        };
-
-        const showItemsPopover = (event, orderId) => {
-            event.preventDefault();
-            event.stopPropagation();
-            closeActivePopover();
-
-            const order = allOrders.find(o => o._id === orderId);
-            if (!order) return;
-
-            const popover = document.createElement('div');
-            popover.className = 'items-popover';
-            popover.id = 'items-popover-active';
-
-            const itemsHtml = order.items.map(item => {
-                const categoryName = item.serviceCategoryID.categoryName;
-                let details = '';
-                if(item.weightInKg) details = `<span>Weight: ${item.weightInKg} Kg</span>`;
-                if(item.pairCount) details = `<span>Pairs: ${item.pairCount}</span>`;
-                if(item.subItems && item.subItems.length > 0) {
-                    details = item.subItems.map(si => `<span>${si.quantity}x ${si.itemName}</span>`).join('');
-                }
-                const serviceTypeTag = `<span class="service-type-tag service-type-tag-${item.serviceType.toLowerCase()}">${item.serviceType}</span>`;
-                return `<div class="items-popover-category"><strong>${categoryName} ${serviceTypeTag}</strong>${details}</div>`;
-            }).join('');
-
-            popover.innerHTML = `
-                <div class="items-popover-header">Items in Order #${order._id.slice(-6).toUpperCase()}</div>
-                <div class="items-popover-list">${itemsHtml || '<div style="padding: 8px; color: #6b7280;">No items found.</div>'}</div>
-            `;
-             
-            document.body.appendChild(popover);
-            const rect = event.target.getBoundingClientRect();
-            popover.style.left = `${rect.left}px`;
-            popover.style.top = `${rect.bottom + window.scrollY + 5}px`;
-
-            window.addEventListener('click', closeActivePopover, { once: true });
-        };
-
         const renderOrders = (ordersToRender) => {
             if (ordersToRender.length === 0) {
                 orderListDiv.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px;"><h3>No orders match the current filters.</h3><p>Try adjusting your search or filter criteria.</p></div>`;
@@ -402,30 +476,55 @@
             orderListDiv.innerHTML = ordersToRender.map(order => {
                 const customer = order.customerID || {};
                 const pickupSlot = order.pickupSlot || {};
-                const orderDate = new Date(order.orderedOn).toLocaleDateString('en-IN');
-                const initials = (customer.customerName || ' ').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
-                const totalCategories = order.items.length;
+                const orderDate = new Date(order.orderedOn).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
+                const isExpress = order.items?.some(item => item.serviceType === 'Express');
+                const serviceType = isExpress ? 'Express' : 'Standard';
+                const serviceTypeTag = `<span class="service-type-tag service-type-tag-${serviceType.toLowerCase()}">${serviceType}</span>`;
+
+                const sourceTag = order.orderSource ? `<span class="source-tag">${order.orderSource}</span>` : '';
+
+                const fullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode]
+                    .filter(Boolean) 
+                    .join(', ');
+
+                let maxTatHours = 0;
+                order.items.forEach(item => {
+                    const service = item.serviceCategoryID;
+                    if (!service) return;
+                    const tatString = item.serviceType === 'Express' ? service.expressTAT : service.standardTAT;
+                    const tatHours = parseInt(tatString, 10) || 0;
+                    if (tatHours > maxTatHours) maxTatHours = tatHours;
+                });
+                
+                let formattedDeliveryDate = '-';
+                const calculationStartDate = order.pickupDate ? order.pickupDate : order.orderedOn;
+                if (calculationStartDate) {
+                    const dateObj = new Date(calculationStartDate);
+                    const deliveryDateObj = new Date(dateObj.getTime() + maxTatHours * 60 * 60 * 1000);
+                    formattedDeliveryDate = deliveryDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                }
+                const formattedPickupDate = order.pickupDate ? new Date(order.pickupDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'N/A';
+                
                 return `
                 <div class="list-row">
                     <div>
-                        <strong>#${order._id.slice(-6).toUpperCase()}</strong>
+                        <div><strong>#${order._id.slice(-6).toUpperCase()} ${serviceTypeTag}</strong></div>
                         <small>${orderDate}</small>
                     </div>
-                    <div class="customer-cell">
-                        <div class="avatar">${initials}</div>
-                        <div>
-                            <strong>${customer.customerName || 'N/A'}</strong>
-                            <small>${order.deliverySociety || 'N/A'}</small>
-                        </div>
+                    <div>
+                        <div><strong>${customer.customerName || 'N/A'}</strong>${sourceTag}</div>
+                        <small>${customer.phone || 'N/A'}</small>
+                    </div>
+                    <div class="location-cell-truncate" title="${fullLocation}">
+                         ${fullLocation || 'Walk-in Order'}
+                    </div>
+                    <div>
+                        <strong>₹${order.billAmount.toFixed(2)}</strong>
                     </div>
                     <div class="schedule-info">
-                        <strong>₹${order.billAmount.toFixed(2)}</strong>
-                        <small>
-                             <a href="#" class="items-link" onclick="showItemsPopover(event, '${order._id}')">${totalCategories} Service Items</a>
-                        </small>
-                        <small title="Pickup Date & Slot">🗓️ ${new Date(order.pickupDate).toLocaleDateString('en-IN')} (${pickupSlot.slotName || 'N/A'})</small>
-                        <small title="Pickup Agent">👨‍💼 ${order.pickupAgentName || 'Not Assigned'}</small>
+                        <small><strong>Pickup:</strong> ${formattedPickupDate} (${pickupSlot.slotName || '-'})</small>
+                        <small><strong>Expected Delivery:</strong> ${formattedDeliveryDate} (-)</small>
                     </div>
                     <div>${getStatusBadge(order.orderStatus)}</div>
                     <div>${getPaymentBadge(order.paymentStatus)}</div>
@@ -436,6 +535,7 @@
                 `;
             }).join('');
         };
+
 
         // =================================================================
         //                     MODAL HANDLING
@@ -448,82 +548,90 @@
             pickupSlotSelect.innerHTML = '<option value="">-- Select Slot --</option>';
             availableSlots.filter(s => s.slotType === 'Pickup').forEach(s => pickupSlotSelect.innerHTML += `<option value="${s._id}">${s.slotName}</option>`);
 
-            pickupAgentSelect.innerHTML = '<option value="">-- Unassign --</option>';
-            availableAgents.filter(a => a.role.role_name === 'Pickup Agent').forEach(a => pickupAgentSelect.innerHTML += `<option value="${a._id}">${a.name}</option>`);
+            const deliveryAgentsPool = availableAgents.filter(a => 
+                a.role.role_name === 'Delivery Agent'
+            );
 
-            deliveryAgentSelect.innerHTML = '<option value="">-- Unassign --</option>';
-            availableAgents.filter(a => a.role.role_name === 'Delivery Agent').forEach(a => deliveryAgentSelect.innerHTML += `<option value="${a._id}">${a.name}</option>`);
+            const agentOptions = deliveryAgentsPool.map(a => `<option value="${a._id}">${a.name}</option>`).join('');
+            
+            pickupAgentSelect.innerHTML = '<option value="">-- Unassign --</option>' + agentOptions;
+            deliveryAgentSelect.innerHTML = '<option value="">-- Unassign --</option>' + agentOptions;
         };
 
         const openModal = async (orderId) => {
             try {
-                // Fetch full order details. Backend now sends the snapshotted address.
                 const response = await fetch(`/api/orders/${orderId}`);
                 if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) throw new Error('Failed to fetch order details');
                 const order = await response.json();
+                
+                currentOpenOrder = order;
 
-                // Calculate Expected Delivery Date from service TATs
+                currentModalItems = JSON.parse(JSON.stringify(order.items)); 
+
                 let maxTatHours = 0;
-                order.items.forEach(item => {
+                (order.items || []).forEach(item => {
                     const service = item.serviceCategoryID;
                     if (!service) return;
-                    
                     const tatString = item.serviceType === 'Express' ? service.expressTAT : service.standardTAT;
                     const tatHours = parseInt(tatString, 10) || 0;
-                    
-                    if (tatHours > maxTatHours) {
-                        maxTatHours = tatHours;
-                    }
+                    if (tatHours > maxTatHours) maxTatHours = tatHours;
                 });
 
-                const pickupDate = new Date(order.pickupDate);
-                const deliveryDate = new Date(pickupDate.getTime() + maxTatHours * 60 * 60 * 1000);
-                const formattedDeliveryDate = deliveryDate.toLocaleDateString('en-IN', {
-                    day: 'numeric', month: 'short', year: 'numeric'
-                });
-                document.getElementById('modalExpectedDelivery').textContent = formattedDeliveryDate;
+                let expectedDeliveryText = '-';
+                const calculationStartDateForModal = order.pickupDate ? order.pickupDate : order.orderedOn;
+                if (calculationStartDateForModal) {
+                    const startDate = new Date(calculationStartDateForModal);
+                    const deliveryDate = new Date(startDate.getTime() + maxTatHours * 60 * 60 * 1000);
+                    expectedDeliveryText = deliveryDate.toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                    });
+                }
+                document.getElementById('modalExpectedDelivery').textContent = expectedDeliveryText;
 
                 document.getElementById('order-id-input').value = order._id;
                 document.getElementById('modalOrderId').textContent = `#${order._id.slice(-6).toUpperCase()}`;
-                
-                // MODIFIED: Use the order's own address fields for display to ensure historical accuracy
                 document.getElementById('modalCustomerName').textContent = order.customerID.customerName;
                 document.getElementById('modalCustomerPhone').textContent = order.customerID.phone;
-                document.getElementById('modalCustomerLocation').textContent = `${order.deliveryAddress}, ${order.deliverySociety}`;
+                
+                const modalFullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode]
+                    .filter(Boolean)
+                    .join(', ');
+                document.getElementById('modalCustomerLocation').textContent = modalFullLocation || 'Walk-in';
                    
-                document.getElementById('orderStatus').value = order.orderStatus;
+                const orderStatusSelect = document.getElementById('orderStatus');
+                orderStatusSelect.innerHTML = `
+                    <option value="New">New</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Pick-up Pending">Pick-up Pending</option>
+                    <option value="In-Progress">In-Progress</option>
+                    <option value="Delivery Pending">Delivery Pending</option>
+                    <option value="Delivered">Delivered</option>
+                `;
+
+                if (order.orderSource === 'Walk-in') {
+                    const allowedStatuses = ['In-Progress', 'Delivery Pending', 'Delivered', 'Cancelled'];
+                    Array.from(orderStatusSelect.options).forEach(option => {
+                        if (!allowedStatuses.includes(option.value)) {
+                            option.remove();
+                        }
+                    });
+                }
+                orderStatusSelect.value = order.orderStatus;
+                
                 document.getElementById('paymentStatus').value = order.paymentStatus;
                 document.getElementById('paymentMethod').value = order.paymentMethod;
                 document.getElementById('transactionID').value = order.transactionID || '';
-                 
-                document.getElementById('pickupDate').value = new Date(order.pickupDate).toISOString().split('T')[0];
+                document.getElementById('pickupDate').value = order.pickupDate ? new Date(order.pickupDate).toISOString().split('T')[0] : '';
                 document.getElementById('pickupSlot').value = order.pickupSlot?._id || '';
-                document.getElementById('pickupAgent').value = order.pickupAgent?._id || '';
-                document.getElementById('deliveryAgent').value = order.deliveryAgent?._id || '';
+                
+                // MODIFICATION START: Agent fields are now always unassigned initially.
+                document.getElementById('pickupAgent').value = '';
+                document.getElementById('deliveryAgent').value = '';
+                // MODIFICATION END
 
-                document.getElementById('paymentDetailsSection').style.display = order.paymentStatus === 'Confirmed' ? 'grid' : 'none';
-
-                const itemsContainer = document.getElementById('modalItemsContainer');
-                itemsContainer.innerHTML = order.items.map(item => {
-                    let details = '';
-                    if (item.weightInKg) details = `${item.weightInKg} Kg`;
-                    if (item.pairCount) details = `${item.pairCount} Pair(s)`;
-                    if (item.subItems) details = item.subItems.map(si => `${si.quantity}x ${si.itemName}`).join(', ');
-                    
-                    const serviceTypeTag = `<span class="service-type-tag service-type-tag-${item.serviceType.toLowerCase()}">${item.serviceType}</span>`;
-
-                    return `
-                        <div class="item-list-row">
-                            <div>
-                                <strong>${item.serviceCategoryID.categoryName} ${serviceTypeTag}</strong>
-                                <div class="item-details">${details}</div>
-                            </div>
-                            <div><strong>₹${item.itemTotal.toFixed(2)}</strong></div>
-                        </div>
-                    `;
-                }).join('');
-                document.getElementById('modalTotal').textContent = `Total: ₹${order.billAmount.toFixed(2)}`;
+                renderModalItems();
+                setFormEditableState(order);
 
                 modal.style.display = 'block';
             } catch (error) {
@@ -533,8 +641,291 @@
 
         const closeModal = () => {
             modal.style.display = 'none';
+            currentOpenOrder = null;
         };
-         
+
+        const setFormEditableState = (order) => {
+            const saveButton = document.getElementById('saveChangesBtn');
+            const itemEditingSection = document.getElementById('itemEditingSection');
+            const allFormElements = document.getElementById('orderUpdateForm').elements;
+            const paymentContainer = document.getElementById('paymentSectionContainer');
+            const currentStatus = order.orderStatus;
+            
+            const disableAllControls = () => {
+                for (let i = 0; i < allFormElements.length; i++) {
+                    const el = allFormElements[i];
+                    if (el.type !== 'hidden' && el.type !== 'button') {
+                        el.disabled = true;
+                    }
+                }
+                saveButton.disabled = true;
+                itemEditingSection.style.display = 'none';
+                paymentContainer.style.display = 'none';
+            };
+
+            const enableControls = (ids) => {
+                ids.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = false;
+                });
+                saveButton.disabled = false;
+            };
+
+            disableAllControls();
+            renderModalItems(); 
+
+            switch (currentStatus) {
+                case 'New':
+                    enableControls(['pickupAgent']);
+                    break;
+                case 'Pick-up Pending':
+                    enableControls(['pickupAgent']);
+                    break;
+                case 'In-Progress':
+                    itemEditingSection.style.display = 'block';
+                    break;
+                case 'Delivery Pending':
+                    enableControls(['deliveryAgent']);
+                    break;
+                case 'Delivered':
+                    paymentContainer.style.display = 'block';
+                    enableControls(['paymentStatus', 'paymentMethod', 'transactionID']);
+                    document.getElementById('paymentStatus').dispatchEvent(new Event('change'));
+                    break;
+                case 'Cancelled':
+                    break;
+            }
+
+            enableControls(['orderStatus']);
+
+            // CHANGE: Determine if order is Express and pass flag to UI setup function
+            const isOrderExpress = currentOpenOrder?.items?.some(item => item.serviceType === 'Express');
+            setupItemEditingUI(currentStatus, isOrderExpress);
+        };
+
+        // =================================================================
+        //                 MODAL ITEM EDITING LOGIC
+        // =================================================================
+
+        const renderModalItems = () => {
+            const itemsContainer = document.getElementById('modalItemsContainer');
+            const orderStatus = document.getElementById('orderStatus').value;
+            const isEditable = orderStatus === 'In-Progress';
+
+            itemsContainer.innerHTML = (currentModalItems || []).map((item, index) => {
+                const service = availableServices.find(s => s._id === (item.serviceCategoryID._id || item.serviceCategoryID));
+                if (!service) return ''; 
+                let details = '';
+                if (item.weightInKg) details = `${item.weightInKg} Kg`;
+                if (item.pairCount) details = `${item.pairCount} Pair(s)`;
+                if (item.subItems) details = item.subItems.map(si => `${si.quantity}x ${si.itemName}`).join(', ');
+                const serviceTypeTag = `<span class="service-type-tag service-type-tag-${item.serviceType.toLowerCase()}">${item.serviceType}</span>`;
+                
+                const removeButton = isEditable ? `<button type="button" class="remove-item-btn" onclick="removeModalItem(${index})">×</button>` : '';
+
+                return `
+                    <div class="item-list-row">
+                        <div>
+                            <strong>${service.categoryName} ${serviceTypeTag}</strong>
+                            <div class="item-details">${details}</div>
+                        </div>
+                        <div><strong>₹${item.itemTotal.toFixed(2)}</strong></div>
+                        <div>${removeButton}</div>
+                    </div>
+                `;
+            }).join('');
+            updateModalTotal();
+        };
+
+        const updateModalTotal = () => {
+            const total = (currentModalItems || []).reduce((acc, item) => acc + item.itemTotal, 0);
+            document.getElementById('modalTotal').textContent = `Total: ₹${total.toFixed(2)}`;
+        };
+
+        const removeModalItem = (index) => {
+            currentModalItems.splice(index, 1);
+            renderModalItems();
+        };
+
+        // CHANGE: Updated function to accept isOrderExpress flag
+        const setupItemEditingUI = (status, isOrderExpress) => {
+            const container = document.getElementById('itemEditingSection');
+            if (status !== 'In-Progress') {
+                container.innerHTML = '';
+                return;
+            }
+
+            const serviceOptions = availableServices.map(s => `<option value="${s._id}">${s.categoryName}</option>`).join('');
+
+            container.innerHTML = `
+                <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 1rem;">
+                    <h5 style="margin-top: 0; margin-bottom: 1rem;">Add a New Service</h5>
+                    <div class="form-group">
+                        <label class="form-label" style="margin-bottom: 8px;">Service Type</label>
+                        <div class="service-type-group" id="modalServiceTypeGroup">
+                            <label class="service-type-label">
+                                <input type="radio" name="modalServiceType" value="Standard" checked> Standard
+                            </label>
+                            <label class="service-type-label">
+                                <input type="radio" name="modalServiceType" value="Express"> Express
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                        <div style="flex-grow: 1;">
+                            <label class="form-label" for="modalServiceCategorySelect">Service Category</label>
+                            <select class="form-select" id="modalServiceCategorySelect">
+                                <option value="">-- Select a category --</option>
+                                ${serviceOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div id="modalServiceInputContainer" style="display: none; margin-top: 1rem;"></div>
+                </div>
+            `;
+            
+            // CHANGE: Logic to lock the service type radio buttons
+            const standardRadio = document.querySelector('#modalServiceTypeGroup input[value="Standard"]');
+            const expressRadio = document.querySelector('#modalServiceTypeGroup input[value="Express"]');
+
+            if (standardRadio && expressRadio) {
+                // Check the correct one based on the order type
+                if (isOrderExpress) {
+                    expressRadio.checked = true;
+                } else {
+                    standardRadio.checked = true;
+                }
+                // Disable both to prevent switching
+                standardRadio.disabled = true;
+                expressRadio.disabled = true;
+                // Add visual styles to indicate they are disabled
+                standardRadio.parentElement.style.cursor = 'not-allowed';
+                standardRadio.parentElement.style.opacity = '0.7';
+                expressRadio.parentElement.style.cursor = 'not-allowed';
+                expressRadio.parentElement.style.opacity = '0.7';
+            }
+
+            const categorySelect = document.getElementById('modalServiceCategorySelect');
+            const serviceTypeGroup = document.getElementById('modalServiceTypeGroup');
+
+            const updateServiceInputs = () => {
+                const serviceId = categorySelect.value;
+                const serviceInputContainer = document.getElementById('modalServiceInputContainer');
+                if (!serviceId) {
+                    serviceInputContainer.style.display = 'none';
+                    serviceInputContainer.innerHTML = '';
+                    return;
+                }
+                const service = availableServices.find(s => s._id === serviceId);
+                renderServiceInputsForModal(service);
+            };
+
+            categorySelect.addEventListener('change', updateServiceInputs);
+            serviceTypeGroup.addEventListener('change', updateServiceInputs); // This listener won't fire now, which is correct.
+        };
+
+        const renderServiceInputsForModal = (service) => {
+            const container = document.getElementById('modalServiceInputContainer');
+            const selectedServiceType = document.querySelector('input[name="modalServiceType"]:checked').value;
+            const isExpress = selectedServiceType === 'Express';
+            const multiplier = isExpress ? (service.expressPriceMultiplier || 2) : 1;
+            const tat = isExpress ? service.expressTAT : service.standardTAT;
+            
+            let content = '';
+             switch (service.pricingModel) {
+                case 'PerKg':
+                    content = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                           <div class="form-group" style="margin: 0;"><label class="form-label">Weight (Kg)</label><input type="number" step="0.01" min="0.1" class="form-input" id="modal-service-value"></div>
+                           <div class="form-group" style="margin: 0;"><label class="form-label">Price per Kg (₹)</label><input type="number" class="form-input" id="modal-service-price" value="${(service.pricePerKg * multiplier).toFixed(2)}"></div>
+                        </div>`;
+                    break;
+                case 'PerPair':
+                     content = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                           <div class="form-group" style="margin: 0;"><label class="form-label">Number of Pairs</label><input type="number" step="1" min="1" class="form-input" id="modal-service-value"></div>
+                           <div class="form-group" style="margin: 0;"><label class="form-label">Price per Pair (₹)</label><input type="number" class="form-input" id="modal-service-price" value="${(service.pricePerPair * multiplier).toFixed(2)}"></div>
+                        </div>`;
+                    break;
+                case 'PerItem':
+                    const header = `<div class="sub-item-row" style="font-weight:600;"><label>Item</label><label>Price (₹)</label><label>Qty</label></div>`;
+                    content = header + service.subcategories.map(sub => `
+                        <div class="sub-item-row" data-name="${sub.itemName}">
+                           <label>${sub.itemName}</label>
+                           <input type="number" min="0" value="${(sub.price * multiplier).toFixed(2)}" class="form-input modal-sub-item-price">
+                           <input type="number" min="0" placeholder="0" class="form-input modal-sub-item-qty">
+                        </div>`
+                    ).join('');
+                    break;
+            }
+            container.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                    <p style="margin:0;"><strong>Adding: ${service.categoryName} (${selectedServiceType})</strong></p>
+                    <small style="color: #4b5563;"><strong>Turnaround Time:</strong> ${tat}</small>
+                </div>
+                ${content}
+                <button type="button" class="btn-primary" onclick='addServiceToModal("${service._id}")' style="margin-top: 10px;">Add Item</button>
+            `;
+            container.style.display = 'block';
+        };
+
+        const addServiceToModal = (serviceId) => {
+            const service = availableServices.find(s => s._id === serviceId);
+            const newItem = {
+                serviceCategoryID: service._id,
+                itemTotal: 0,
+                serviceType: document.querySelector('input[name="modalServiceType"]:checked').value
+            };
+            let isValid = true;
+
+            switch (service.pricingModel) {
+                case 'PerKg':
+                    const weight = parseFloat(document.getElementById('modal-service-value').value);
+                    const priceKg = parseFloat(document.getElementById('modal-service-price').value);
+                    if (!weight || weight <= 0) { alert('Invalid weight'); return; }
+                    if (isNaN(priceKg) || priceKg < 0) { alert('Invalid price'); return; }
+                    newItem.weightInKg = weight;
+                    newItem.pricePerKg = priceKg;
+                    newItem.itemTotal = weight * priceKg;
+                    break;
+                case 'PerPair':
+                    const pairs = parseInt(document.getElementById('modal-service-value').value, 10);
+                    const pricePair = parseFloat(document.getElementById('modal-service-price').value);
+                    if (!pairs || pairs <= 0) { alert('Invalid pair count'); return; }
+                    if (isNaN(pricePair) || pricePair < 0) { alert('Invalid price'); return; }
+                    newItem.pairCount = pairs;
+                    newItem.pricePerPair = pricePair;
+                    newItem.itemTotal = pairs * pricePair;
+                    break;
+                case 'PerItem':
+                    newItem.subItems = [];
+                    let total = 0;
+                    document.querySelectorAll('#modalServiceInputContainer .sub-item-row[data-name]').forEach(node => {
+                        if (!isValid) return;
+                        const qty = parseInt(node.querySelector('.modal-sub-item-qty').value, 10);
+                        if (qty > 0) {
+                            const priceEl = node.querySelector('.modal-sub-item-price');
+                            const price = parseFloat(priceEl.value);
+                             if (isNaN(price) || price < 0) {
+                                alert(`Invalid price for ${node.dataset.name}.`);
+                                isValid = false;
+                                return;
+                            }
+                            newItem.subItems.push({ itemName: node.dataset.name, quantity: qty, pricePerItem: price });
+                            total += qty * price;
+                        }
+                    });
+                    if (!isValid) return;
+                    if (newItem.subItems.length === 0) { alert('Add at least one quantity.'); return; }
+                    newItem.itemTotal = total;
+                    break;
+            }
+            if (!isValid) return;
+            
+            currentModalItems.push(newItem);
+            renderModalItems();
+            document.getElementById('modalServiceInputContainer').style.display = 'none';
+            document.getElementById('modalServiceCategorySelect').value = '';
+        };
+
         // =================================================================
         //                 FILTERING LOGIC & EVENT LISTENERS
         // =================================================================
@@ -544,28 +935,40 @@
             const paymentStatus = paymentStatusFilter.value;
             const startDate = startDateFilter.value;
             const endDate = endDateFilter.value;
-
             let filteredOrders = allOrders;
 
-            // 1. Filter by Search Term (Order ID or Customer Name)
+            // Quick Filters
+            if (activeServiceFilter !== 'all') {
+                filteredOrders = filteredOrders.filter(order => {
+                    const isExpress = order.items.some(item => item.serviceType === 'Express');
+                    if (activeServiceFilter === 'express') return isExpress;
+                    if (activeServiceFilter === 'standard') return !isExpress;
+                    return true;
+                });
+            }
+
+            if (activeSourceFilter !== 'all') {
+                filteredOrders = filteredOrders.filter(order => {
+                    const source = (order.orderSource || 'call').toLowerCase(); 
+                    if (activeSourceFilter === 'walk-in') return source === 'walk-in';
+                    if (activeSourceFilter === 'call') return source !== 'walk-in';
+                    return true;
+                });
+            }
+
+            // Main Filters
             if (searchTerm) {
                 filteredOrders = filteredOrders.filter(order => 
                     order._id.toLowerCase().includes(searchTerm) ||
                     (order.customerID && order.customerID.customerName.toLowerCase().includes(searchTerm))
                 );
             }
-            
-            // 2. Filter by Order Status
             if (orderStatus !== 'all') {
                 filteredOrders = filteredOrders.filter(order => order.orderStatus === orderStatus);
             }
-
-            // 3. Filter by Payment Status
             if (paymentStatus !== 'all') {
                 filteredOrders = filteredOrders.filter(order => order.paymentStatus === paymentStatus);
             }
-
-            // 4. Filter by Date Range (orderedOn)
             if (startDate) {
                 filteredOrders = filteredOrders.filter(order => new Date(order.orderedOn) >= new Date(startDate));
             }
@@ -574,31 +977,95 @@
                  endOfDay.setHours(23, 59, 59, 999);
                 filteredOrders = filteredOrders.filter(order => new Date(order.orderedOn) <= endOfDay);
             }
-
             renderOrders(filteredOrders);
         };
+        
+        function updateQuickFilterUI() {
+            document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
+            
+            if (activeServiceFilter === 'all' && activeSourceFilter === 'all') {
+                document.querySelector('.quick-filter-btn[data-filter-group="all"]').classList.add('active');
+            } else {
+                if (activeServiceFilter !== 'all') {
+                    document.querySelector(`.quick-filter-btn[data-filter-group="service"][data-filter-value="${activeServiceFilter}"]`).classList.add('active');
+                }
+                if (activeSourceFilter !== 'all') {
+                    document.querySelector(`.quick-filter-btn[data-filter-group="source"][data-filter-value="${activeSourceFilter}"]`).classList.add('active');
+                }
+            }
+        }
+        
+        quickFiltersContainer.addEventListener('click', (e) => {
+            if (!e.target.matches('.quick-filter-btn')) return;
+            const button = e.target;
+            const group = button.dataset.filterGroup;
+            const value = button.dataset.filterValue;
+
+            if (group === 'all') {
+                activeServiceFilter = 'all';
+                activeSourceFilter = 'all';
+            } else if (group === 'service') {
+                activeServiceFilter = (activeServiceFilter === value) ? 'all' : value;
+            } else if (group === 'source') {
+                activeSourceFilter = (activeSourceFilter === value) ? 'all' : value;
+            }
+            updateQuickFilterUI();
+            applyFilters();
+        });
+
 
         searchInput.addEventListener('input', applyFilters);
         orderStatusFilter.addEventListener('change', applyFilters);
         paymentStatusFilter.addEventListener('change', applyFilters);
         startDateFilter.addEventListener('change', applyFilters);
         endDateFilter.addEventListener('change', applyFilters);
-
         clearFiltersBtn.addEventListener('click', () => {
             searchInput.value = '';
             orderStatusFilter.value = 'all';
             paymentStatusFilter.value = 'all';
             startDateFilter.value = '';
             endDateFilter.value = '';
+            
+            activeServiceFilter = 'all';
+            activeSourceFilter = 'all';
+            updateQuickFilterUI();
+
             applyFilters();
         });
-
 
         // =================================================================
         //                 FORM SUBMISSION & INITIALIZATION
         // =================================================================
+
+        document.getElementById('orderStatus').addEventListener('change', (e) => {
+            if (currentOpenOrder) {
+                const mockOrderForStateChange = { ...currentOpenOrder, orderStatus: e.target.value };
+                setFormEditableState(mockOrderForStateChange);
+            }
+        });
+
         document.getElementById('paymentStatus').addEventListener('change', (e) => {
-            document.getElementById('paymentDetailsSection').style.display = e.target.value === 'Confirmed' ? 'grid' : 'none';
+            const paymentDetails = document.getElementById('paymentDetailsSection');
+            if (e.target.value === 'Confirmed') {
+                paymentDetails.style.display = 'grid';
+                if (!e.target.disabled) {
+                    document.getElementById('paymentMethod').disabled = false;
+                    document.getElementById('transactionID').disabled = false;
+                }
+                document.getElementById('paymentMethod').dispatchEvent(new Event('change'));
+            } else {
+                paymentDetails.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('paymentMethod').addEventListener('change', (e) => {
+            const transactionContainer = document.getElementById('transactionIdContainer');
+            if(e.target.value === 'Cash') {
+                transactionContainer.style.display = 'none';
+                document.getElementById('transactionID').value = '';
+            } else {
+                transactionContainer.style.display = 'block';
+            }
         });
 
         document.getElementById('orderUpdateForm').addEventListener('submit', async (e) => {
@@ -613,6 +1080,8 @@
             }
             if (!data.pickupAgent) data.pickupAgent = null;
             if (!data.deliveryAgent) data.deliveryAgent = null;
+
+            data.items = currentModalItems;
                
             try {
                 const response = await fetch(`/api/orders/${orderId}`, {
@@ -627,7 +1096,6 @@
                 }
                    
                 await fetchAndRender();
-                closeActivePopover();
                 closeModal();
                    
             } catch (error) {
@@ -649,7 +1117,8 @@
                 const responses = await Promise.all([
                     fetch('/api/orders'),
                     fetch('/api/staff/agents'),
-                    fetch('/api/slots')
+                    fetch('/api/slots'),
+                    fetch('/api/services')
                 ]);
 
                 if (responses.some(res => res.status === 401)) {
@@ -658,11 +1127,12 @@
                     return;
                 }
 
-                const [ordersRes, agentsRes, slotsRes] = responses;
+                const [ordersRes, agentsRes, slotsRes, servicesRes] = responses;
 
                 allOrders = await ordersRes.json();
                 availableAgents = await agentsRes.json();
                 availableSlots = await slotsRes.json();
+                availableServices = await servicesRes.json();
                  
                 applyFilters(); 
                 populateModalDropdowns();
