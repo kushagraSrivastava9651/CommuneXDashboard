@@ -1,20 +1,21 @@
 // =================================================================
-//                      IMPORTS AND SETUP
+//                 IMPORTS AND SETUP
 // =================================================================
 
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const jwt =require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const PDFDocument = require('pdfkit');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // =================================================================
-//                          MIDDLEWARE
+//                         MIDDLEWARE
 // =================================================================
 
 app.use(express.json());
@@ -27,21 +28,17 @@ const isAuthenticated = (req, res, next) => {
     const token = req.cookies.token;
 
     if (!token) {
-        // For API requests, send a 401 Unauthorized status
         if (req.originalUrl.startsWith('/api/')) {
             return res.status(401).json({ message: 'Unauthorized. Please log in.' });
         }
-        // For page requests, redirect to the login page
         return res.redirect('/');
     }
 
     try {
-        // Verify the token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user; // Attach user payload to the request
+        req.user = decoded.user;
         next();
     } catch (err) {
-        // If token is invalid, clear the cookie and redirect/send error
         if (req.originalUrl.startsWith('/api/')) {
             return res.status(401).json({ message: 'Token is not valid.' });
         }
@@ -51,7 +48,7 @@ const isAuthenticated = (req, res, next) => {
 
 
 // =================================================================
-//                      DATABASE CONNECTION
+//                 DATABASE CONNECTION
 // =================================================================
 
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db')
@@ -65,7 +62,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db')
     .catch(error => console.error('❌ Error connecting to MongoDB:', error));
 
 // =================================================================
-//                         MONGOOSE SCHEMAS
+//                       MONGOOSE SCHEMAS
 // =================================================================
 
 const roleSchema = new mongoose.Schema({
@@ -84,7 +81,6 @@ const userSchema = new mongoose.Schema({
     society: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Society' }],
 });
 
-// Pre-save hook to hash user password
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
         return next();
@@ -96,7 +92,6 @@ userSchema.pre('save', async function (next) {
 
 const staffSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    // MODIFIED: Email is no longer required, but if provided, must be unique.
     email: { type: String, unique: true, sparse: true },
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -104,7 +99,6 @@ const staffSchema = new mongoose.Schema({
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true }
 }, { timestamps: true });
 
-// Pre-save hook to hash staff password
 staffSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
         return next();
@@ -129,28 +123,11 @@ const customerSchema = new mongoose.Schema({
 
 
 const serviceSchema = new mongoose.Schema({
-    categoryName: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    pricingModel: {
-        type: String,
-        required: true,
-        enum: ['PerKg', 'PerItem', 'PerPair']
-    },
-    pricePerKg: {
-        type: Number,
-        required: function () { return this.pricingModel === 'PerKg'; }
-    },
-    pricePerPair: {
-        type: Number,
-        required: function () { return this.pricingModel === 'PerPair'; }
-    },
-    subcategories: [{
-        itemName: { type: String, required: true },
-        price: { type: Number, required: true }
-    }],
+    categoryName: { type: String, required: true, unique: true },
+    pricingModel: { type: String, required: true, enum: ['PerKg', 'PerItem', 'PerPair'] },
+    pricePerKg: { type: Number, required: function () { return this.pricingModel === 'PerKg'; } },
+    pricePerPair: { type: Number, required: function () { return this.pricingModel === 'PerPair'; } },
+    subcategories: [{ itemName: { type: String, required: true }, price: { type: Number, required: true } }],
     standardTAT: { type: String, required: true },
     expressTAT: { type: String },
     expressPriceMultiplier: { type: Number, default: 2 }
@@ -184,11 +161,7 @@ const orderSchema = new mongoose.Schema({
         itemTotal: { type: Number, required: true }
     }],
     billAmount: { type: Number, required: true },
-    orderStatus: {
-        type: String,
-        enum: ['New', 'Cancelled', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered'],
-        default: 'New'
-    },
+    orderStatus: { type: String, enum: ['New', 'Cancelled', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered'], default: 'New' },
     paymentStatus: { type: String, enum: ['Pending', 'Confirmed'], default: 'Pending' },
     paymentMethod: { type: String, enum: ['Cash', 'Credit-Card', 'Debit-Card', 'UPI'], default: 'Cash' },
     transactionID: { type: String },
@@ -197,6 +170,7 @@ const orderSchema = new mongoose.Schema({
     pickupAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
     pickupAgentName: { type: String },
     deliveryDate: { type: Date },
+    expectedDeliveryDate: { type: Date },
     deliverySlot: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot' },
     deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
     deliveryAgentName: { type: String }
@@ -213,7 +187,7 @@ const Order = mongoose.model('Order', orderSchema);
 const Slot = mongoose.model('Slot', slotSchema);
 
 // =================================================================
-//                 DATA SEEDING FUNCTIONS
+//                   DATA SEEDING FUNCTIONS
 // =================================================================
 
 async function seedRoles() {
@@ -249,64 +223,31 @@ async function seedServices() {
                 categoryName: 'Ironing Only',
                 pricingModel: 'PerItem',
                 subcategories: [
-                    { itemName: 'Shirt', price: 20 },
-                    { itemName: 'T-Shirt', price: 15 },
-                    { itemName: 'Pants / Trousers', price: 25 },
-                    { itemName: 'Jeans', price: 30 },
+                    { itemName: 'Shirt', price: 20 }, { itemName: 'T-Shirt', price: 15 },
+                    { itemName: 'Pants / Trousers', price: 25 }, { itemName: 'Jeans', price: 30 },
                     { itemName: 'Others', price: 20 }
                 ],
-                standardTAT: '24 Hours',
-                expressTAT: '12 Hours',
-                expressPriceMultiplier: 2
+                standardTAT: '24 Hours', expressTAT: '12 Hours', expressPriceMultiplier: 2
             },
             {
                 categoryName: 'Dry Cleaning',
                 pricingModel: 'PerItem',
                 subcategories: [
-                    { itemName: 'Kurta / Kurti', price: 80 },
-                    { itemName: 'Saree (Plain)', price: 150 },
-                    { itemName: 'Blazer / Coat', price: 200 },
-                    { itemName: 'Sherwani', price: 350 },
-                    { itemName: 'Lehenga', price: 400 },
-                    { itemName: 'Others', price: 100 }
+                    { itemName: 'Kurta / Kurti', price: 80 }, { itemName: 'Saree (Plain)', price: 150 },
+                    { itemName: 'Blazer / Coat', price: 200 }, { itemName: 'Sherwani', price: 350 },
+                    { itemName: 'Lehenga', price: 400 }, { itemName: 'Others', price: 100 }
                 ],
-                standardTAT: '72 Hours',
-                expressTAT: '36 Hours',
-                expressPriceMultiplier: 2
+                standardTAT: '72 Hours', expressTAT: '36 Hours', expressPriceMultiplier: 2
             },
             { categoryName: 'Shoes & Footwear', pricingModel: 'PerPair', pricePerPair: 120, standardTAT: '72 Hours', expressTAT: '36 Hours', expressPriceMultiplier: 2 }
         ];
 
         for (const service of servicesData) {
-            const existingService = await Service.findOne({ categoryName: service.categoryName });
-
-            if (!existingService) {
+            if (!(await Service.findOne({ categoryName: service.categoryName }))) {
                 await Service.create(service);
                 console.log(`✅ Service '${service.categoryName}' seeded.`);
-            } else {
-                let needsUpdate = false;
-                if (!existingService.expressTAT || !existingService.expressPriceMultiplier) {
-                    existingService.expressTAT = service.expressTAT;
-                    existingService.expressPriceMultiplier = service.expressPriceMultiplier;
-                    needsUpdate = true;
-                }
-                if (service.pricingModel === 'PerItem') {
-                    const hasOthers = existingService.subcategories.some(sub => sub.itemName === 'Others');
-                    if (!hasOthers) {
-                        const othersSubCategory = service.subcategories.find(sub => sub.itemName === 'Others');
-                        if (othersSubCategory) {
-                            existingService.subcategories.push(othersSubCategory);
-                            needsUpdate = true;
-                        }
-                    }
-                }
-                if (needsUpdate) {
-                    await existingService.save();
-                    console.log(`🔄 Service '${service.categoryName}' updated.`);
-                }
             }
         }
-        console.log('✅ Service seeding/verification complete.');
     } catch (error) {
         console.error("❌ Error seeding services:", error);
     }
@@ -315,14 +256,21 @@ async function seedServices() {
 
 async function seedSlots() {
     try {
-        if (await Slot.countDocuments() > 0) return;
+        const count = await Slot.countDocuments();
+        if (count > 0) {
+            await Slot.deleteMany({ slotType: 'Delivery' });
+            const allDayDeliverySlot = { slotName: '9 AM - 10 PM', slotType: 'Delivery', maxCapacity: 20 };
+            if (!(await Slot.findOne(allDayDeliverySlot))) {
+                await Slot.create(allDayDeliverySlot);
+                console.log('✅ All-day delivery slot configured.');
+            }
+            return;
+        };
         const slots = [
             { slotName: '9 AM - 12 PM', slotType: 'Pickup', maxCapacity: 5 },
             { slotName: '12 PM - 3 PM', slotType: 'Pickup', maxCapacity: 5 },
             { slotName: '4 PM - 7 PM', slotType: 'Pickup', maxCapacity: 5 },
-            { slotName: '9 AM - 12 PM', slotType: 'Delivery', maxCapacity: 5 },
-            { slotName: '12 PM - 3 PM', slotType: 'Delivery', maxCapacity: 5 },
-            { slotName: '4 PM - 7 PM', slotType: 'Delivery', maxCapacity: 5 },
+            { slotName: '9 AM - 10 PM', slotType: 'Delivery', maxCapacity: 20 },
         ];
         await Slot.insertMany(slots);
         console.log('✅ Default slots seeded.');
@@ -333,7 +281,7 @@ async function seedSlots() {
 
 
 // =================================================================
-//            ADMIN & AUTHENTICATION ROUTES
+//               ADMIN & AUTHENTICATION ROUTES
 // =================================================================
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
@@ -343,9 +291,9 @@ app.get('/slots.html', isAuthenticated, (req, res) => res.sendFile(path.join(__d
 app.get('/orders.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'orders.html')));
 app.get('/staff.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
 app.get('/services.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'services.html')));
+app.get('/reports.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'reports.html')));
 
 
-// Login route now uses bcrypt and issues a JWT cookie
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -353,112 +301,99 @@ app.post('/login', async (req, res) => {
         if (!user) {
             return res.status(401).send('Invalid credentials.');
         }
-
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).send('Invalid credentials.');
         }
-
-        const payload = {
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role
-            }
-        };
-
+        const payload = { user: { id: user.id, email: user.email, role: user.role } };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
-
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 1000 * 60 * 60 * 24 // 1 day
-        }).redirect('/home.html');
-
+        res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 1000 * 60 * 60 * 24 }).redirect('/home.html');
     } catch (error) {
         console.error(error);
         res.status(500).send('Server error during login.');
     }
 });
 
-
-// Logout route now clears the JWT cookie
 app.get('/logout', (req, res) => {
     res.clearCookie('token').redirect('/');
 });
 
 
 // =================================================================
-//            PROTECTED API ROUTES MIDDLEWARE
+//               PROTECTED API ROUTES MIDDLEWARE
 // =================================================================
 
 app.use('/api', isAuthenticated);
 
+// =================================================================
+//                       HELPER FUNCTION
+// =================================================================
+const calculateExpectedDelivery = async (items, startDate) => {
+    if (!startDate) return null;
+    let maxTatHours = 0;
+    for (const item of items) {
+        const serviceId = item.serviceCategoryID._id || item.serviceCategoryID;
+        const service = await Service.findById(serviceId);
+        if (service) {
+            const tatString = item.serviceType === 'Express' ? service.expressTAT : service.standardTAT;
+            const tatHours = parseInt(tatString, 10) || 0;
+            if (tatHours > maxTatHours) {
+                maxTatHours = tatHours;
+            }
+        }
+    }
+    if (maxTatHours > 0) {
+        const deliveryDate = new Date(startDate);
+        deliveryDate.setHours(deliveryDate.getHours() + maxTatHours);
+        return deliveryDate;
+    }
+    return null;
+};
 
 // =================================================================
-//            DATA MANAGEMENT ROUTES (for dropdowns, etc.)
+//             DATA MANAGEMENT ROUTES (for dropdowns, etc.)
 // =================================================================
 
-app.get('/api/roles', async (req, res) => {
-    try {
-        res.json(await Role.find({}));
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while fetching roles.' });
-    }
-});
-
-app.get('/api/societies', async (req, res) => {
-    try {
-        res.json(await Society.find({}));
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while fetching societies.' });
-    }
-});
-
-app.get('/api/slots', async (req, res) => {
-    try {
-        res.json(await Slot.find({}));
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while fetching slots.' });
-    }
-});
+app.get('/api/roles', async (req, res) => { try { res.json(await Role.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
+app.get('/api/societies', async (req, res) => { try { res.json(await Society.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
+app.get('/api/slots', async (req, res) => { try { res.json(await Slot.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
 
 app.get('/api/slots/status', async (req, res) => {
     const { date } = req.query;
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return res.status(400).json({ message: 'A valid date in YYYY-MM-DD format is required.' });
-    }
-
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { return res.status(400).json({ message: 'Valid date required.' }); }
     try {
         const targetDate = new Date(date);
         const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
         const endDate = new Date(startDate);
         endDate.setUTCDate(startDate.getUTCDate() + 1);
-
+        
         const slots = await Slot.find({}).lean();
-
+        
         const statusPromises = slots.map(async (slot) => {
             let countQuery;
             if (slot.slotType === 'Pickup') {
-                countQuery = Order.countDocuments({
+                countQuery = {
                     pickupSlot: slot._id,
                     pickupDate: { $gte: startDate, $lt: endDate }
-                });
-            } else { // Delivery
-                countQuery = Order.countDocuments({
-                    deliverySlot: slot._id,
-                    deliveryDate: { $gte: startDate, $lt: endDate }
-                });
+                };
+            } else {
+                countQuery = {
+                    "$or": [
+                        { deliveryDate: { $gte: startDate, $lt: endDate } },
+                        {
+                            deliveryDate: { $eq: null },
+                            expectedDeliveryDate: { $gte: startDate, $lt: endDate },
+                            orderStatus: { $nin: ['Cancelled', 'Delivered'] }
+                        }
+                    ]
+                };
             }
-            const bookedCount = await countQuery;
+            const bookedCount = await Order.countDocuments(countQuery);
             return { ...slot, bookedCount };
         });
 
-        const slotsWithStatus = await Promise.all(statusPromises);
-        res.json(slotsWithStatus);
-
+        res.json(await Promise.all(statusPromises));
     } catch (error) {
-        console.error("Error fetching slot status:", error);
         res.status(500).json({ message: 'Error fetching slot status.' });
     }
 });
@@ -466,14 +401,8 @@ app.get('/api/slots/status', async (req, res) => {
 app.put('/api/slots/:id', async (req, res) => {
     try {
         const { maxCapacity } = req.body;
-        if (typeof maxCapacity !== 'number' || maxCapacity < 1) {
-            return res.status(400).json({ message: 'Invalid capacity value. Must be a number greater than 0.' });
-        }
-        const updatedSlot = await Slot.findByIdAndUpdate(
-            req.params.id,
-            { maxCapacity },
-            { new: true, runValidators: true }
-        );
+        if (typeof maxCapacity !== 'number' || maxCapacity < 1) { return res.status(400).json({ message: 'Invalid capacity.' }); }
+        const updatedSlot = await Slot.findByIdAndUpdate(req.params.id, { maxCapacity }, { new: true, runValidators: true });
         if (!updatedSlot) return res.status(404).json({ message: 'Slot not found.' });
         res.json(updatedSlot);
     } catch (error) {
@@ -481,9 +410,8 @@ app.put('/api/slots/:id', async (req, res) => {
     }
 });
 
-
 // =================================================================
-//            STAFF MANAGEMENT ROUTES
+//                   STAFF MANAGEMENT ROUTES
 // =================================================================
 
 app.get('/api/staff', async (req, res) => {
@@ -496,7 +424,6 @@ app.get('/api/staff', async (req, res) => {
 
 app.post('/api/staff', async (req, res) => {
     try {
-        // If email is an empty string, remove it so the sparse index works correctly
         if (req.body.email === '') {
             delete req.body.email;
         }
@@ -518,20 +445,13 @@ app.put('/api/staff/:id', async (req, res) => {
         if (!staff) {
             return res.status(404).json({ message: 'Staff not found.' });
         }
-
         const updateData = req.body;
-        // If email is an empty string, set it to null/undefined to clear it
         if (updateData.email === '') {
-            updateData.email = undefined; 
+            updateData.email = undefined;
         }
-
         Object.assign(staff, updateData);
-
         const updatedStaff = await staff.save();
-
-        const populatedStaff = await Staff.findById(updatedStaff._id)
-            .populate('role').populate('society');
-
+        const populatedStaff = await Staff.findById(updatedStaff._id).populate('role').populate('society');
         res.json(populatedStaff);
     } catch (error) {
         if (error.code === 11000) {
@@ -564,31 +484,19 @@ app.get('/api/staff/agents', async (req, res) => {
 
 
 // =================================================================
-//                      CUSTOMER MANAGEMENT ROUTES
+//                   CUSTOMER MANAGEMENT ROUTES
 // =================================================================
 
 app.get('/api/customers', async (req, res) => {
     try {
         const orderStats = await Order.aggregate([
-            {
-                $group: {
-                    _id: '$customerID',
-                    orderCount: { $sum: 1 },
-                    totalSpent: { $sum: '$billAmount' }
-                }
-            }
+            { $group: { _id: '$customerID', orderCount: { $sum: 1 }, totalSpent: { $sum: '$billAmount' } } }
         ]);
-
         const statsMap = orderStats.reduce((acc, stat) => {
-            acc[stat._id.toString()] = {
-                orderCount: stat.orderCount,
-                totalSpent: stat.totalSpent
-            };
+            acc[stat._id.toString()] = { orderCount: stat.orderCount, totalSpent: stat.totalSpent };
             return acc;
         }, {});
-
         const customers = await Customer.find({}).populate('addresses.society').lean();
-
         const customersWithStats = customers.map(customer => {
             const stats = statsMap[customer._id.toString()];
             const currentAddress = customer.addresses?.find(a => a.isCurrent) || customer.addresses?.[0];
@@ -601,9 +509,7 @@ app.get('/api/customers', async (req, res) => {
                 totalSpent: stats ? stats.totalSpent : 0
             };
         });
-
         res.json(customersWithStats);
-
     } catch (error) {
         console.error("Error fetching customers with stats:", error);
         res.status(500).json({ message: 'Server error fetching customers.' });
@@ -615,12 +521,8 @@ app.get('/api/customers/:id/orders', async (req, res) => {
         const customerId = req.params.id;
         const orders = await Order.find({ customerID: customerId })
             .select('orderedOn billAmount orderStatus items deliveryAddress deliverySociety deliveryPincode')
-            .populate({
-                path: 'items.serviceCategoryID',
-                select: 'categoryName'
-            })
+            .populate({ path: 'items.serviceCategoryID', select: 'categoryName' })
             .sort({ orderedOn: -1 });
-
         if (!orders) {
             return res.json([]);
         }
@@ -634,21 +536,9 @@ app.get('/api/customers/:id/orders', async (req, res) => {
 app.post('/api/customers', async (req, res) => {
     try {
         const { customerName, phone, address, society, pincode } = req.body;
-
-        const newCustomerData = {
-            customerName,
-            phone,
-            addresses: [{
-                address,
-                society,
-                pincode,
-                isCurrent: true
-            }]
-        };
-
+        const newCustomerData = { customerName, phone, addresses: [{ address, society, pincode, isCurrent: true }] };
         const newCustomer = new Customer(newCustomerData);
         await newCustomer.save();
-
         const populatedCustomer = await Customer.findById(newCustomer._id).populate('addresses.society');
         res.status(201).json(populatedCustomer);
     } catch (error) {
@@ -662,10 +552,8 @@ app.put('/api/customers/:id', async (req, res) => {
         const { customerName, phone, address, society, pincode } = req.body;
         const customer = await Customer.findById(req.params.id);
         if (!customer) return res.status(404).json({ message: 'Customer not found.' });
-
         customer.customerName = customerName;
         customer.phone = phone;
-
         if (customer.addresses && customer.addresses.length > 0) {
             customer.addresses[0].address = address;
             customer.addresses[0].society = society;
@@ -673,9 +561,7 @@ app.put('/api/customers/:id', async (req, res) => {
         } else {
             customer.addresses.push({ address, society, pincode, isCurrent: true });
         }
-
         await customer.save();
-
         const populatedCustomer = await Customer.findById(customer._id).populate('addresses.society');
         res.json(populatedCustomer);
     } catch (error) {
@@ -695,7 +581,7 @@ app.delete('/api/customers/:id', async (req, res) => {
 
 
 // =================================================================
-//                 SERVICE & ORDER ROUTES
+//                   SERVICE & ORDER ROUTES
 // =================================================================
 
 app.get('/api/services', async (req, res) => {
@@ -710,19 +596,14 @@ app.put('/api/services/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
-
         if (!updateData) {
             return res.status(400).json({ message: 'Invalid update data provided.' });
         }
-
         const updatedService = await Service.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
-
         if (!updatedService) {
             return res.status(404).json({ message: 'Service not found.' });
         }
-
         res.json(updatedService);
-
     } catch (error) {
         console.error('Error updating service:', error);
         res.status(500).json({ message: 'Error updating service.' });
@@ -733,10 +614,7 @@ app.put('/api/services/:id', async (req, res) => {
 app.get('/api/orders', async (req, res) => {
     try {
         const orders = await Order.find({})
-            .populate({
-                path: 'customerID',
-                select: 'customerName phone',
-            })
+            .populate({ path: 'customerID', select: 'customerName phone' })
             .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot', 'slotName')
             .sort({ orderedOn: -1 });
@@ -750,10 +628,7 @@ app.get('/api/orders', async (req, res) => {
 app.get('/api/orders/:id', async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
-            .populate({
-                path: 'customerID',
-                select: 'customerName phone'
-            })
+            .populate({ path: 'customerID', select: 'customerName phone' })
             .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot')
             .populate('pickupAgent deliveryAgent');
@@ -767,94 +642,62 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-    const { customerID, items, pickupDate, pickupSlot, pickupAgent, orderSource } = req.body;
-
+    const { customerID, items, pickupDate, pickupAgent, orderSource } = req.body;
     try {
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'Order must contain at least one item.' });
         }
-
-        if (orderSource === 'Call') {
-            const slot = await Slot.findById(pickupSlot);
-            if (!slot) return res.status(400).json({ message: 'Invalid pickup slot selected.' });
-            const targetDate = new Date(pickupDate);
-            const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
-            const endDate = new Date(startDate);
-            endDate.setUTCDate(startDate.getUTCDate() + 1);
-            const pickupCount = await Order.countDocuments({
-                pickupSlot: pickupSlot,
-                pickupDate: { $gte: startDate, $lt: endDate }
-            });
-            if (pickupCount >= slot.maxCapacity) {
-                return res.status(400).json({ message: `Pickup slot for this date is full. Please choose another.` });
-            }
-        }
-
         const customer = await Customer.findById(customerID).populate('addresses.society');
         if (!customer) return res.status(404).json({ message: 'Customer not found.' });
         const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
         if (!currentAddress) {
             return res.status(400).json({ message: 'Customer does not have a current address set.' });
         }
-
         const itemGroups = items.reduce((groups, item) => {
             const type = item.serviceType;
-            if (!groups[type]) {
-                groups[type] = [];
-            }
+            if (!groups[type]) { groups[type] = []; }
             groups[type].push(item);
             return groups;
         }, {});
-
         const createdOrders = [];
-
         for (const serviceType in itemGroups) {
             const groupItems = itemGroups[serviceType];
-
             let serverCalculatedBill = 0;
             const processedItems = [];
             for (const item of groupItems) {
                 const service = await Service.findById(item.serviceCategoryID);
                 if (!service) return res.status(400).json({ message: `Invalid service ID: ${item.serviceCategoryID}` });
-
                 const isExpress = item.serviceType === 'Express';
                 const multiplier = isExpress ? (service.expressPriceMultiplier || 2) : 1;
                 let currentItemTotal = 0;
                 const processedItem = { serviceCategoryID: service._id, serviceType: item.serviceType };
-
                 switch (service.pricingModel) {
                     case 'PerKg':
-                        if (!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({ message: 'Weight is required for PerKg items.' });
-                        const pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
-                        currentItemTotal = item.weightInKg * pricePerKg;
                         processedItem.weightInKg = item.weightInKg;
-                        processedItem.pricePerKg = pricePerKg;
+                        processedItem.pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
+                        currentItemTotal = processedItem.weightInKg * processedItem.pricePerKg;
                         break;
                     case 'PerPair':
-                        if (!item.pairCount || item.pairCount <= 0) return res.status(400).json({ message: 'Pair count is required for PerPair items.' });
-                        const pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
-                        currentItemTotal = item.pairCount * pricePerPair;
                         processedItem.pairCount = item.pairCount;
-                        processedItem.pricePerPair = pricePerPair;
+                        processedItem.pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
+                        currentItemTotal = processedItem.pairCount * processedItem.pricePerPair;
                         break;
                     case 'PerItem':
-                        if (!item.subItems || item.subItems.length === 0) return res.status(400).json({ message: 'Sub-items are required for PerItem services.' });
                         processedItem.subItems = [];
                         for (const sub of item.subItems) {
                             const serviceSubItem = service.subcategories.find(s => s.itemName === sub.itemName);
-                            if (!serviceSubItem) return res.status(400).json({ message: `Invalid sub-item: ${sub.itemName}` });
                             const pricePerItem = sub.pricePerItem || (serviceSubItem.price * multiplier);
                             currentItemTotal += sub.quantity * pricePerItem;
-                            processedItem.subItems.push({ itemName: sub.itemName, quantity: sub.quantity, pricePerItem });
+                            processedItem.subItems.push({ ...sub, pricePerItem });
                         }
                         break;
-                    default: return res.status(400).json({ message: 'Unknown pricing model.' });
                 }
                 processedItem.itemTotal = currentItemTotal;
                 processedItems.push(processedItem);
                 serverCalculatedBill += currentItemTotal;
             }
-
+            const calculationStartDate = orderSource === 'Walk-in' ? new Date() : new Date(pickupDate);
+            const expectedDeliveryDate = await calculateExpectedDelivery(processedItems, calculationStartDate);
             const newOrderData = {
                 ...req.body,
                 items: processedItems,
@@ -862,35 +705,22 @@ app.post('/api/orders', async (req, res) => {
                 deliveryAddress: currentAddress.address,
                 deliverySociety: currentAddress.society.name,
                 deliveryPincode: currentAddress.pincode,
+                expectedDeliveryDate: expectedDeliveryDate
             };
-
             if (orderSource === 'Walk-in') {
                 newOrderData.orderStatus = 'In-Progress';
                 delete newOrderData.pickupDate;
                 delete newOrderData.pickupSlot;
                 delete newOrderData.pickupAgent;
-            } else if (pickupAgent) { // This is for 'Call'
-                const agent = await Staff.findById(pickupAgent);
-                if (agent) {
-                    newOrderData.pickupAgentName = agent.name;
-                    newOrderData.orderStatus = 'Pick-up Pending';
-                }
-            } else { // 'Call' with no agent assigned yet
-                newOrderData.orderStatus = 'New';
+            } else {
+                newOrderData.orderStatus = pickupAgent ? 'Pick-up Pending' : 'New';
             }
-
             const newOrder = new Order(newOrderData);
             await newOrder.save();
-            const populatedOrder = await Order.findById(newOrder._id)
-                .populate('customerID', 'customerName')
-                .populate('items.serviceCategoryID', 'categoryName')
-                .populate('pickupSlot', 'slotName');
-
+            const populatedOrder = await Order.findById(newOrder._id).populate('customerID', 'customerName').populate('items.serviceCategoryID', 'categoryName').populate('pickupSlot', 'slotName');
             createdOrders.push(populatedOrder);
         }
-
         res.status(201).json(createdOrders);
-
     } catch (error) {
         console.error(error);
         if (error.name === 'ValidationError') return res.status(400).json({ message: error.message });
@@ -898,26 +728,31 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-
 app.put('/api/orders/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
         const updateData = { ...req.body };
+        const originalOrder = await Order.findById(orderId);
+        if (!originalOrder) return res.status(404).json({ message: "Order not found." });
 
         if (updateData.pickupAgent) {
             const agent = await Staff.findById(updateData.pickupAgent);
-            if (agent) updateData.pickupAgentName = agent.name;
-            else {
-                updateData.pickupAgentName = null;
-            }
+            updateData.pickupAgentName = agent ? agent.name : null;
         }
-
         if (updateData.deliveryAgent) {
             const agent = await Staff.findById(updateData.deliveryAgent);
-            if (agent) updateData.deliveryAgentName = agent.name;
-            else {
-                updateData.deliveryAgentName = null;
+            updateData.deliveryAgentName = agent ? agent.name : null;
+        }
+
+        if (updateData.deliveryDate) {
+            const allDayDeliverySlot = await Slot.findOne({ slotType: 'Delivery' });
+            if (allDayDeliverySlot) {
+                updateData.deliverySlot = allDayDeliverySlot._id;
+            } else {
+                console.warn('All-day delivery slot not found in database.');
             }
+        } else {
+            updateData.deliverySlot = null;
         }
 
         if (updateData.items) {
@@ -926,39 +761,30 @@ app.put('/api/orders/:id', async (req, res) => {
             for (const item of updateData.items) {
                 const service = await Service.findById(item.serviceCategoryID);
                 if (!service) return res.status(400).json({ message: `Invalid service ID: ${item.serviceCategoryID}` });
-
                 const isExpress = item.serviceType === 'Express';
                 const multiplier = isExpress ? (service.expressPriceMultiplier || 2) : 1;
                 let currentItemTotal = 0;
                 const processedItem = { serviceCategoryID: service._id, serviceType: item.serviceType };
-
                 switch (service.pricingModel) {
-                    case 'PerKg':
-                        if (!item.weightInKg || item.weightInKg <= 0) return res.status(400).json({ message: 'Weight is required for PerKg items.' });
-                        const pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
-                        currentItemTotal = item.weightInKg * pricePerKg;
+                   case 'PerKg':
                         processedItem.weightInKg = item.weightInKg;
-                        processedItem.pricePerKg = pricePerKg;
+                        processedItem.pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
+                        currentItemTotal = processedItem.weightInKg * processedItem.pricePerKg;
                         break;
                     case 'PerPair':
-                        if (!item.pairCount || item.pairCount <= 0) return res.status(400).json({ message: 'Pair count is required for PerPair items.' });
-                        const pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
-                        currentItemTotal = item.pairCount * pricePerPair;
                         processedItem.pairCount = item.pairCount;
-                        processedItem.pricePerPair = pricePerPair;
+                        processedItem.pricePerPair = item.pricePerPair || (service.pricePerPair * multiplier);
+                        currentItemTotal = processedItem.pairCount * processedItem.pricePerPair;
                         break;
                     case 'PerItem':
-                        if (!item.subItems || item.subItems.length === 0) return res.status(400).json({ message: 'Sub-items are required for PerItem services.' });
                         processedItem.subItems = [];
                         for (const sub of item.subItems) {
                             const serviceSubItem = service.subcategories.find(s => s.itemName === sub.itemName);
-                            if (!serviceSubItem) return res.status(400).json({ message: `Invalid sub-item: ${sub.itemName}` });
                             const pricePerItem = sub.pricePerItem || (serviceSubItem.price * multiplier);
                             currentItemTotal += sub.quantity * pricePerItem;
-                            processedItem.subItems.push({ itemName: sub.itemName, quantity: sub.quantity, pricePerItem });
+                            processedItem.subItems.push({ ...sub, pricePerItem });
                         }
                         break;
-                    default: return res.status(400).json({ message: 'Unknown pricing model.' });
                 }
                 processedItem.itemTotal = currentItemTotal;
                 processedItems.push(processedItem);
@@ -966,23 +792,14 @@ app.put('/api/orders/:id', async (req, res) => {
             }
             updateData.items = processedItems;
             updateData.billAmount = serverCalculatedBill;
+            const startDate = originalOrder.orderSource === 'Walk-in' ? originalOrder.orderedOn : (updateData.pickupDate || originalOrder.pickupDate);
+            updateData.expectedDeliveryDate = await calculateExpectedDelivery(updateData.items, startDate);
         }
-
-
         delete updateData.deliveryAddress;
         delete updateData.deliverySociety;
 
         const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true });
-        if (!updatedOrder) return res.status(404).json({ message: 'Order not found.' });
-
-        const populatedOrder = await Order.findById(updatedOrder._id)
-            .populate({
-                path: 'customerID',
-                select: 'customerName phone',
-            })
-            .populate('items.serviceCategoryID', 'categoryName pricingModel')
-            .populate('pickupSlot deliverySlot', 'slotName');
-
+        const populatedOrder = await Order.findById(updatedOrder._id).populate({ path: 'customerID', select: 'customerName phone' }).populate('items.serviceCategoryID', 'categoryName pricingModel').populate('pickupSlot deliverySlot', 'slotName');
         res.json(populatedOrder);
     } catch (error) {
         console.error('Error updating order:', error);
@@ -991,7 +808,7 @@ app.put('/api/orders/:id', async (req, res) => {
 });
 
 // =================================================================
-//                 DASHBOARD API ROUTE
+//               DASHBOARD & REPORTS API ROUTES
 // =================================================================
 app.get('/api/dashboard/stats', async (req, res) => {
     try {
@@ -1015,51 +832,239 @@ app.get('/api/dashboard/stats', async (req, res) => {
         }
 
         const dateFilter = { orderedOn: { $gte: startDate, $lte: endDate } };
-
         const totalOrders = await Order.countDocuments(dateFilter);
-
-        const revenueData = await Order.aggregate([
-            { $match: { ...dateFilter, paymentStatus: 'Confirmed' } },
-            { $group: { _id: null, total: { $sum: '$billAmount' } } }
-        ]);
+        const revenueData = await Order.aggregate([{ $match: { ...dateFilter, paymentStatus: 'Confirmed' } }, { $group: { _id: null, total: { $sum: '$billAmount' } } }]);
         const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
-
-        const pendingRevenueData = await Order.aggregate([
-            { $match: { ...dateFilter, paymentStatus: 'Pending' } },
-            { $group: { _id: null, total: { $sum: '$billAmount' } } }
-        ]);
+        const pendingRevenueData = await Order.aggregate([{ $match: { ...dateFilter, paymentStatus: 'Pending' } }, { $group: { _id: null, total: { $sum: '$billAmount' } } }]);
         const pendingRevenue = pendingRevenueData.length > 0 ? pendingRevenueData[0].total : 0;
-
         const activeCustomers = await Order.distinct('customerID', dateFilter);
-
-        const orderStatusBreakdown = await Order.aggregate([
-            { $match: dateFilter },
-            { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
-        ]);
-
-        const recentOrders = await Order.find(dateFilter)
-            .sort({ orderedOn: -1 })
-            .limit(5)
-            .populate({
-                path: 'customerID',
-                select: 'customerName',
-            });
-
-        res.json({
-            totalOrders,
-            totalRevenue,
-            pendingRevenue,
-            totalActiveCustomers: activeCustomers.length,
-            orderStatusBreakdown,
-            recentOrders
-        });
+        const orderStatusBreakdown = await Order.aggregate([{ $match: dateFilter }, { $group: { _id: '$orderStatus', count: { $sum: 1 } } }]);
+        const recentOrders = await Order.find(dateFilter).sort({ orderedOn: -1 }).limit(5).populate({ path: 'customerID', select: 'customerName' });
+        res.json({ totalOrders, totalRevenue, pendingRevenue, totalActiveCustomers: activeCustomers.length, orderStatusBreakdown, recentOrders });
     } catch (error) {
         console.error("Error fetching dashboard stats:", error);
         res.status(500).json({ message: 'Server error fetching dashboard stats.' });
     }
 });
+
 // =================================================================
-//                        START THE SERVER
+//            PDF GENERATION CLASS
+// =================================================================
+
+class ManifestGenerator {
+    constructor(data, reportDate, reportType) {
+        this.doc = new PDFDocument({
+            layout: 'landscape',
+            margin: 40,
+            bufferPages: true
+        });
+        this.data = data;
+        this.reportDate = reportDate;
+        this.reportType = reportType;
+        this.pageNumber = 0;
+    }
+
+    generate() {
+        this.doc.on('pageAdded', this._onPageAdded.bind(this));
+        this._onPageAdded();
+        this._generateTable();
+        this._finalizeDocument();
+        return this.doc;
+    }
+
+    _onPageAdded() {
+        this.pageNumber++;
+        const range = this.doc.page.margins;
+        this._generateHeader(range);
+        this._generateFooter(range);
+    }
+
+    _generateHeader(range) {
+        this.doc.fontSize(10).fillColor('#555555').text('WashX Laundry Services', range.left, range.top - 20);
+        const title = this.reportType === 'pickups' ? 'Pickup Manifest' : 'Delivery Manifest';
+        this.doc.fontSize(20).fillColor('#000000').font('Helvetica-Bold')
+            .text(title, { align: 'center' });
+
+        const dateLabel = this.reportType === 'pickups' ? 'Pickup Date' : 'Delivery Date';
+        this.doc.fontSize(10).font('Helvetica')
+           .text(`Total Tasks: ${this.data.length}`, range.left, range.top)
+           .text(`${dateLabel}: ${this.reportDate}`, range.left, range.top, { align: 'right' });
+    }
+    
+    _generateFooter(range) {
+        const timestamp = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+        this.doc.fontSize(8).fillColor('#555555')
+            .text(`Generated on: ${timestamp}`, range.left, range.bottom + 10, { align: 'left' })
+            .text(`Page ${this.pageNumber}`, range.left, range.bottom + 10, { align: 'right' });
+    }
+    
+    _getTableHeadersAndWidths() {
+        if (this.reportType === 'pickups') {
+            return {
+                headers: ['S.No.', 'Order ID', 'Customer', 'Address & Pincode', 'Contact', 'Slot', 'Items', 'Assigned Agent', 'Notes / Remarks'],
+                colWidths: [30, 65, 90, 120, 70, 75, 120, 80, 100]
+            };
+        } else {
+            return {
+                headers: ['S.No.', 'Order ID', 'Customer', 'Address & Pincode', 'Contact', 'Amount Due', 'Items', 'Assigned Agent', 'Notes / Remarks'],
+                colWidths: [30, 65, 90, 120, 70, 60, 120, 80, 115]
+            };
+        }
+    }
+
+    _generateTable() {
+        const { headers, colWidths } = this._getTableHeadersAndWidths();
+        const tableTop = this.doc.page.margins.top + 50;
+        this.doc.y = tableTop;
+        const startX = this.doc.page.margins.left;
+
+        this.doc.font('Helvetica-Bold').fontSize(8);
+        this._drawTableRow(startX, this.doc.y, headers, colWidths, true);
+        this.doc.y += 20;
+        this.doc.font('Helvetica').fontSize(8);
+
+        const entriesPerPage = 10;
+
+        this.data.forEach((order, index) => {
+            if (index > 0 && index % entriesPerPage === 0) {
+                this.doc.addPage();
+                const newTableTop = this.doc.page.margins.top + 50;
+                this.doc.y = newTableTop;
+                this.doc.font('Helvetica-Bold').fontSize(8);
+                this._drawTableRow(startX, this.doc.y, headers, colWidths, true);
+                this.doc.y += 20;
+                this.doc.font('Helvetica').fontSize(8);
+            }
+            
+            const orderIdText = `#${order._id.toString().slice(-6).toUpperCase()}\n(${order.orderSource || 'Call'})`;
+            const customerText = order.customerID?.customerName || 'DELETED CUSTOMER';
+            const addressText = `${order.deliveryAddress}, ${order.deliverySociety}, ${order.deliveryPincode || ''}`;
+            const contactText = order.customerID?.phone || 'N/A';
+            const itemsText = order.items.map(item => {
+                const categoryName = item.serviceCategoryID?.categoryName || 'Unknown Service';
+                let desc = `${categoryName} (${item.serviceType.charAt(0)})`;
+                if (item.weightInKg) desc += ` ${item.weightInKg}kg`;
+                if (item.pairCount) desc += ` ${item.pairCount}p`;
+                if (item.subItems && item.subItems.length > 0) {
+                    const subDesc = item.subItems.map(si => `${si.quantity}x${si.itemName}`).join(', ');
+                    desc += ` [${subDesc}]`;
+                }
+                return desc;
+            }).join('; ');
+            const agentText = this.reportType === 'pickups' ? (order.pickupAgentName || 'Unassigned') : (order.deliveryAgentName || 'Unassigned');
+
+            let rowData;
+            if (this.reportType === 'pickups') {
+                const slotText = order.pickupSlot?.slotName || 'N/A';
+                rowData = [(index + 1).toString(), orderIdText, customerText, addressText, contactText, slotText, itemsText, agentText, ''];
+            } else {
+                const amountDue = `₹ ${order.paymentStatus === 'Pending' ? order.billAmount.toFixed(2) : '0.00'}`;
+                rowData = [(index + 1).toString(), orderIdText, customerText, addressText, contactText, amountDue, itemsText, agentText, ''];
+            }
+            
+            let maxHeight = 0;
+            rowData.forEach((text, i) => {
+                const cellHeight = this.doc.heightOfString(text.toString(), { width: colWidths[i] - 10 });
+                if (cellHeight > maxHeight) maxHeight = cellHeight;
+            });
+            const rowHeight = Math.max(maxHeight + 10, 25);
+            
+            this._drawTableRow(startX, this.doc.y, rowData, colWidths, false, index % 2 !== 0, rowHeight);
+            this.doc.y += rowHeight;
+        });
+    }
+
+    _drawTableRow(x, y, rowData, colWidths, isHeader, isZebra, rowHeight) {
+        let currentX = x;
+        const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+
+        if (isHeader) {
+            this.doc.rect(x, y, totalWidth, 20).fill('#EAEAEA').stroke('#CCCCCC');
+            this.doc.fillColor('#000000');
+        } else if (isZebra) {
+            this.doc.rect(x, y, totalWidth, rowHeight).fill('#F9F9F9').stroke('#EAEAEA');
+            this.doc.fillColor('#333333');
+        } else {
+            this.doc.rect(x, y, totalWidth, rowHeight).stroke('#EAEAEA');
+            this.doc.fillColor('#333333');
+        }
+
+        rowData.forEach((cellData, i) => {
+            this.doc.text(cellData.toString(), currentX + 5, y + 5, {
+                width: colWidths[i] - 10,
+                align: 'left'
+            });
+            currentX += colWidths[i];
+        });
+    }
+    
+    _finalizeDocument() {
+        this.doc.end();
+    }
+}
+
+// =================================================================
+//                 PDF MANIFEST GENERATION ROUTES
+// =================================================================
+
+const handleManifestRequest = async (req, res, type) => {
+    const { date } = req.query;
+
+    if (!date) {
+        return res.status(400).json({ message: 'A valid date is required.' });
+    }
+
+    try {
+        const targetDate = new Date(date);
+        const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
+        const endDate = new Date(startDate);
+        endDate.setUTCDate(startDate.getUTCDate() + 1);
+
+        let query = {};
+        if (type === 'pickups') {
+            query = { 
+                pickupDate: { $gte: startDate, $lt: endDate }
+            };
+        } else { // deliveries
+            query = { 
+                deliveryDate: { $gte: startDate, $lt: endDate },
+            };
+        }
+
+        const orders = await Order.find(query)
+            .populate('customerID', 'customerName phone')
+            .populate('items.serviceCategoryID', 'categoryName')
+            .populate('pickupSlot', 'slotName')
+            .sort({ orderedOn: 1 });
+
+        if (orders.length === 0) {
+            return res.status(404).json({ message: `No scheduled ${type} found for ${date}.` });
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=${type}_manifest_${date}.pdf`);
+
+        const generator = new ManifestGenerator(orders, date, type);
+        const pdfDoc = generator.generate();
+        pdfDoc.pipe(res);
+
+    } catch (error) {
+        console.error(`Error fetching ${type} report:`, error);
+        res.status(500).json({ message: 'Failed to generate manifest PDF.' });
+    }
+};
+
+app.get('/api/reports/pickups', (req, res) => {
+    handleManifestRequest(req, res, 'pickups');
+});
+
+app.get('/api/reports/deliveries', (req, res) => {
+    handleManifestRequest(req, res, 'deliveries');
+});
+
+
+// =================================================================
+//                         START THE SERVER
 // =================================================================
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);

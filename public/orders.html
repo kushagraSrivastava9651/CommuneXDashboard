@@ -217,7 +217,7 @@
                 <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
                 <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
                 <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/reports.html" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
                 <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
             </ul>
         </div>
@@ -352,7 +352,7 @@
                 <hr style="margin: 20px 0;">
                    
                 <h4>Scheduling & Agent Assignment</h4>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 1rem;">
                     <div class="form-group">
                         <label class="form-label" for="pickupDate">Pickup Date</label>
                         <input type="date" class="form-input" id="pickupDate" name="pickupDate">
@@ -364,6 +364,12 @@
                     <div class="form-group">
                         <label class="form-label" for="pickupAgent">Pickup Agent</label>
                         <select class="form-select" id="pickupAgent" name="pickupAgent"></select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" for="deliveryDate">Delivery Date</label>
+                        <input type="date" class="form-input" id="deliveryDate" name="deliveryDate">
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="deliveryAgent">Delivery Agent</label>
@@ -432,9 +438,8 @@
         let currentModalItems = [];
         let currentOpenOrder = null;
         
-        // Quick filter state
-        let activeServiceFilter = 'all'; // 'all', 'standard', 'express'
-        let activeSourceFilter = 'all'; // 'all', 'call', 'walk-in'
+        let activeServiceFilter = 'all';
+        let activeSourceFilter = 'all';
 
         const orderListDiv = document.getElementById('orderList');
         const searchInput = document.getElementById('searchInput');
@@ -484,28 +489,13 @@
 
                 const sourceTag = order.orderSource ? `<span class="source-tag">${order.orderSource}</span>` : '';
 
-                const fullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode]
-                    .filter(Boolean) 
-                    .join(', ');
-
-                let maxTatHours = 0;
-                order.items.forEach(item => {
-                    const service = item.serviceCategoryID;
-                    if (!service) return;
-                    const tatString = item.serviceType === 'Express' ? service.expressTAT : service.standardTAT;
-                    const tatHours = parseInt(tatString, 10) || 0;
-                    if (tatHours > maxTatHours) maxTatHours = tatHours;
-                });
+                const fullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode].filter(Boolean).join(', ');
                 
-                let formattedDeliveryDate = '-';
-                const calculationStartDate = order.pickupDate ? order.pickupDate : order.orderedOn;
-                if (calculationStartDate) {
-                    const dateObj = new Date(calculationStartDate);
-                    const deliveryDateObj = new Date(dateObj.getTime() + maxTatHours * 60 * 60 * 1000);
-                    formattedDeliveryDate = deliveryDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-                }
                 const formattedPickupDate = order.pickupDate ? new Date(order.pickupDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'N/A';
-                
+                const formattedDeliveryDate = order.deliveryDate 
+                    ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) 
+                    : (order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '-');
+
                 return `
                 <div class="list-row">
                     <div>
@@ -524,7 +514,7 @@
                     </div>
                     <div class="schedule-info">
                         <small><strong>Pickup:</strong> ${formattedPickupDate} (${pickupSlot.slotName || '-'})</small>
-                        <small><strong>Expected Delivery:</strong> ${formattedDeliveryDate} (-)</small>
+                        <small><strong>Delivery:</strong> ${formattedDeliveryDate}</small>
                     </div>
                     <div>${getStatusBadge(order.orderStatus)}</div>
                     <div>${getPaymentBadge(order.paymentStatus)}</div>
@@ -548,10 +538,7 @@
             pickupSlotSelect.innerHTML = '<option value="">-- Select Slot --</option>';
             availableSlots.filter(s => s.slotType === 'Pickup').forEach(s => pickupSlotSelect.innerHTML += `<option value="${s._id}">${s.slotName}</option>`);
 
-            const deliveryAgentsPool = availableAgents.filter(a => 
-                a.role.role_name === 'Delivery Agent'
-            );
-
+            const deliveryAgentsPool = availableAgents.filter(a => a.role.role_name === 'Delivery Agent');
             const agentOptions = deliveryAgentsPool.map(a => `<option value="${a._id}">${a.name}</option>`).join('');
             
             pickupAgentSelect.innerHTML = '<option value="">-- Unassign --</option>' + agentOptions;
@@ -566,27 +553,11 @@
                 const order = await response.json();
                 
                 currentOpenOrder = order;
-
                 currentModalItems = JSON.parse(JSON.stringify(order.items)); 
 
-                let maxTatHours = 0;
-                (order.items || []).forEach(item => {
-                    const service = item.serviceCategoryID;
-                    if (!service) return;
-                    const tatString = item.serviceType === 'Express' ? service.expressTAT : service.standardTAT;
-                    const tatHours = parseInt(tatString, 10) || 0;
-                    if (tatHours > maxTatHours) maxTatHours = tatHours;
-                });
-
-                let expectedDeliveryText = '-';
-                const calculationStartDateForModal = order.pickupDate ? order.pickupDate : order.orderedOn;
-                if (calculationStartDateForModal) {
-                    const startDate = new Date(calculationStartDateForModal);
-                    const deliveryDate = new Date(startDate.getTime() + maxTatHours * 60 * 60 * 1000);
-                    expectedDeliveryText = deliveryDate.toLocaleDateString('en-IN', {
+                const expectedDeliveryText = order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-IN', {
                         day: 'numeric', month: 'short', year: 'numeric'
-                    });
-                }
+                }) : '-';
                 document.getElementById('modalExpectedDelivery').textContent = expectedDeliveryText;
 
                 document.getElementById('order-id-input').value = order._id;
@@ -594,27 +565,15 @@
                 document.getElementById('modalCustomerName').textContent = order.customerID.customerName;
                 document.getElementById('modalCustomerPhone').textContent = order.customerID.phone;
                 
-                const modalFullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode]
-                    .filter(Boolean)
-                    .join(', ');
+                const modalFullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode].filter(Boolean).join(', ');
                 document.getElementById('modalCustomerLocation').textContent = modalFullLocation || 'Walk-in';
                    
                 const orderStatusSelect = document.getElementById('orderStatus');
-                orderStatusSelect.innerHTML = `
-                    <option value="New">New</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="Pick-up Pending">Pick-up Pending</option>
-                    <option value="In-Progress">In-Progress</option>
-                    <option value="Delivery Pending">Delivery Pending</option>
-                    <option value="Delivered">Delivered</option>
-                `;
-
+                orderStatusSelect.innerHTML = `<option value="New">New</option><option value="Cancelled">Cancelled</option><option value="Pick-up Pending">Pick-up Pending</option><option value="In-Progress">In-Progress</option><option value="Delivery Pending">Delivery Pending</option><option value="Delivered">Delivered</option>`;
                 if (order.orderSource === 'Walk-in') {
                     const allowedStatuses = ['In-Progress', 'Delivery Pending', 'Delivered', 'Cancelled'];
                     Array.from(orderStatusSelect.options).forEach(option => {
-                        if (!allowedStatuses.includes(option.value)) {
-                            option.remove();
-                        }
+                        if (!allowedStatuses.includes(option.value)) option.remove();
                     });
                 }
                 orderStatusSelect.value = order.orderStatus;
@@ -622,13 +581,16 @@
                 document.getElementById('paymentStatus').value = order.paymentStatus;
                 document.getElementById('paymentMethod').value = order.paymentMethod;
                 document.getElementById('transactionID').value = order.transactionID || '';
+                
                 document.getElementById('pickupDate').value = order.pickupDate ? new Date(order.pickupDate).toISOString().split('T')[0] : '';
                 document.getElementById('pickupSlot').value = order.pickupSlot?._id || '';
+                document.getElementById('pickupAgent').value = order.pickupAgent?._id || '';
                 
-                // MODIFICATION START: Agent fields are now always unassigned initially.
-                document.getElementById('pickupAgent').value = '';
-                document.getElementById('deliveryAgent').value = '';
-                // MODIFICATION END
+                // Prefill delivery date with actual delivery date, or fall back to expected delivery date
+                const deliveryDateValue = order.deliveryDate || order.expectedDeliveryDate;
+                document.getElementById('deliveryDate').value = deliveryDateValue ? new Date(deliveryDateValue).toISOString().split('T')[0] : '';
+                
+                document.getElementById('deliveryAgent').value = order.deliveryAgent?._id || '';
 
                 renderModalItems();
                 setFormEditableState(order);
@@ -676,16 +638,15 @@
 
             switch (currentStatus) {
                 case 'New':
-                    enableControls(['pickupAgent']);
-                    break;
                 case 'Pick-up Pending':
-                    enableControls(['pickupAgent']);
+                    enableControls(['pickupDate', 'pickupSlot', 'pickupAgent']);
                     break;
                 case 'In-Progress':
                     itemEditingSection.style.display = 'block';
+                    enableControls(['deliveryDate', 'deliveryAgent']);
                     break;
                 case 'Delivery Pending':
-                    enableControls(['deliveryAgent']);
+                    enableControls(['deliveryDate', 'deliveryAgent']);
                     break;
                 case 'Delivered':
                     paymentContainer.style.display = 'block';
@@ -697,8 +658,6 @@
             }
 
             enableControls(['orderStatus']);
-
-            // CHANGE: Determine if order is Express and pass flag to UI setup function
             const isOrderExpress = currentOpenOrder?.items?.some(item => item.serviceType === 'Express');
             setupItemEditingUI(currentStatus, isOrderExpress);
         };
@@ -747,7 +706,6 @@
             renderModalItems();
         };
 
-        // CHANGE: Updated function to accept isOrderExpress flag
         const setupItemEditingUI = (status, isOrderExpress) => {
             const container = document.getElementById('itemEditingSection');
             if (status !== 'In-Progress') {
@@ -784,44 +742,26 @@
                 </div>
             `;
             
-            // CHANGE: Logic to lock the service type radio buttons
             const standardRadio = document.querySelector('#modalServiceTypeGroup input[value="Standard"]');
             const expressRadio = document.querySelector('#modalServiceTypeGroup input[value="Express"]');
 
             if (standardRadio && expressRadio) {
-                // Check the correct one based on the order type
-                if (isOrderExpress) {
-                    expressRadio.checked = true;
-                } else {
-                    standardRadio.checked = true;
-                }
-                // Disable both to prevent switching
+                if (isOrderExpress) expressRadio.checked = true; else standardRadio.checked = true;
                 standardRadio.disabled = true;
                 expressRadio.disabled = true;
-                // Add visual styles to indicate they are disabled
                 standardRadio.parentElement.style.cursor = 'not-allowed';
                 standardRadio.parentElement.style.opacity = '0.7';
                 expressRadio.parentElement.style.cursor = 'not-allowed';
                 expressRadio.parentElement.style.opacity = '0.7';
             }
 
-            const categorySelect = document.getElementById('modalServiceCategorySelect');
-            const serviceTypeGroup = document.getElementById('modalServiceTypeGroup');
-
-            const updateServiceInputs = () => {
-                const serviceId = categorySelect.value;
+            document.getElementById('modalServiceCategorySelect').addEventListener('change', (e) => {
+                const serviceId = e.target.value;
                 const serviceInputContainer = document.getElementById('modalServiceInputContainer');
-                if (!serviceId) {
-                    serviceInputContainer.style.display = 'none';
-                    serviceInputContainer.innerHTML = '';
-                    return;
-                }
+                if (!serviceId) { serviceInputContainer.style.display = 'none'; return; }
                 const service = availableServices.find(s => s._id === serviceId);
                 renderServiceInputsForModal(service);
-            };
-
-            categorySelect.addEventListener('change', updateServiceInputs);
-            serviceTypeGroup.addEventListener('change', updateServiceInputs); // This listener won't fire now, which is correct.
+            });
         };
 
         const renderServiceInputsForModal = (service) => {
@@ -834,46 +774,22 @@
             let content = '';
              switch (service.pricingModel) {
                 case 'PerKg':
-                    content = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                           <div class="form-group" style="margin: 0;"><label class="form-label">Weight (Kg)</label><input type="number" step="0.01" min="0.1" class="form-input" id="modal-service-value"></div>
-                           <div class="form-group" style="margin: 0;"><label class="form-label">Price per Kg (₹)</label><input type="number" class="form-input" id="modal-service-price" value="${(service.pricePerKg * multiplier).toFixed(2)}"></div>
-                        </div>`;
+                    content = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;"><div class="form-group" style="margin: 0;"><label class="form-label">Weight (Kg)</label><input type="number" step="0.01" min="0.1" class="form-input" id="modal-service-value"></div><div class="form-group" style="margin: 0;"><label class="form-label">Price per Kg (₹)</label><input type="number" class="form-input" id="modal-service-price" value="${(service.pricePerKg * multiplier).toFixed(2)}"></div></div>`;
                     break;
                 case 'PerPair':
-                     content = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                           <div class="form-group" style="margin: 0;"><label class="form-label">Number of Pairs</label><input type="number" step="1" min="1" class="form-input" id="modal-service-value"></div>
-                           <div class="form-group" style="margin: 0;"><label class="form-label">Price per Pair (₹)</label><input type="number" class="form-input" id="modal-service-price" value="${(service.pricePerPair * multiplier).toFixed(2)}"></div>
-                        </div>`;
+                     content = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;"><div class="form-group" style="margin: 0;"><label class="form-label">Number of Pairs</label><input type="number" step="1" min="1" class="form-input" id="modal-service-value"></div><div class="form-group" style="margin: 0;"><label class="form-label">Price per Pair (₹)</label><input type="number" class="form-input" id="modal-service-price" value="${(service.pricePerPair * multiplier).toFixed(2)}"></div></div>`;
                     break;
                 case 'PerItem':
-                    const header = `<div class="sub-item-row" style="font-weight:600;"><label>Item</label><label>Price (₹)</label><label>Qty</label></div>`;
-                    content = header + service.subcategories.map(sub => `
-                        <div class="sub-item-row" data-name="${sub.itemName}">
-                           <label>${sub.itemName}</label>
-                           <input type="number" min="0" value="${(sub.price * multiplier).toFixed(2)}" class="form-input modal-sub-item-price">
-                           <input type="number" min="0" placeholder="0" class="form-input modal-sub-item-qty">
-                        </div>`
-                    ).join('');
+                    content = `<div class="sub-item-row" style="font-weight:600;"><label>Item</label><label>Price (₹)</label><label>Qty</label></div>` + service.subcategories.map(sub => `<div class="sub-item-row" data-name="${sub.itemName}"><label>${sub.itemName}</label><input type="number" min="0" value="${(sub.price * multiplier).toFixed(2)}" class="form-input modal-sub-item-price"><input type="number" min="0" placeholder="0" class="form-input modal-sub-item-qty"></div>`).join('');
                     break;
             }
-            container.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
-                    <p style="margin:0;"><strong>Adding: ${service.categoryName} (${selectedServiceType})</strong></p>
-                    <small style="color: #4b5563;"><strong>Turnaround Time:</strong> ${tat}</small>
-                </div>
-                ${content}
-                <button type="button" class="btn-primary" onclick='addServiceToModal("${service._id}")' style="margin-top: 10px;">Add Item</button>
-            `;
+            container.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;"><p style="margin:0;"><strong>Adding: ${service.categoryName} (${selectedServiceType})</strong></p><small style="color: #4b5563;"><strong>Turnaround Time:</strong> ${tat}</small></div> ${content} <button type="button" class="btn-primary" onclick='addServiceToModal("${service._id}")' style="margin-top: 10px;">Add Item</button>`;
             container.style.display = 'block';
         };
 
         const addServiceToModal = (serviceId) => {
             const service = availableServices.find(s => s._id === serviceId);
-            const newItem = {
-                serviceCategoryID: service._id,
-                itemTotal: 0,
-                serviceType: document.querySelector('input[name="modalServiceType"]:checked').value
-            };
+            const newItem = { serviceCategoryID: service._id, itemTotal: 0, serviceType: document.querySelector('input[name="modalServiceType"]:checked').value };
             let isValid = true;
 
             switch (service.pricingModel) {
@@ -882,33 +798,22 @@
                     const priceKg = parseFloat(document.getElementById('modal-service-price').value);
                     if (!weight || weight <= 0) { alert('Invalid weight'); return; }
                     if (isNaN(priceKg) || priceKg < 0) { alert('Invalid price'); return; }
-                    newItem.weightInKg = weight;
-                    newItem.pricePerKg = priceKg;
-                    newItem.itemTotal = weight * priceKg;
+                    newItem.weightInKg = weight; newItem.pricePerKg = priceKg; newItem.itemTotal = weight * priceKg;
                     break;
                 case 'PerPair':
                     const pairs = parseInt(document.getElementById('modal-service-value').value, 10);
                     const pricePair = parseFloat(document.getElementById('modal-service-price').value);
                     if (!pairs || pairs <= 0) { alert('Invalid pair count'); return; }
                     if (isNaN(pricePair) || pricePair < 0) { alert('Invalid price'); return; }
-                    newItem.pairCount = pairs;
-                    newItem.pricePerPair = pricePair;
-                    newItem.itemTotal = pairs * pricePair;
+                    newItem.pairCount = pairs; newItem.pricePerPair = pricePair; newItem.itemTotal = pairs * pricePair;
                     break;
                 case 'PerItem':
-                    newItem.subItems = [];
-                    let total = 0;
+                    newItem.subItems = []; let total = 0;
                     document.querySelectorAll('#modalServiceInputContainer .sub-item-row[data-name]').forEach(node => {
-                        if (!isValid) return;
                         const qty = parseInt(node.querySelector('.modal-sub-item-qty').value, 10);
                         if (qty > 0) {
-                            const priceEl = node.querySelector('.modal-sub-item-price');
-                            const price = parseFloat(priceEl.value);
-                             if (isNaN(price) || price < 0) {
-                                alert(`Invalid price for ${node.dataset.name}.`);
-                                isValid = false;
-                                return;
-                            }
+                            const price = parseFloat(node.querySelector('.modal-sub-item-price').value);
+                             if (isNaN(price) || price < 0) { alert(`Invalid price for ${node.dataset.name}.`); isValid = false; return; }
                             newItem.subItems.push({ itemName: node.dataset.name, quantity: qty, pricePerItem: price });
                             total += qty * price;
                         }
@@ -919,7 +824,6 @@
                     break;
             }
             if (!isValid) return;
-            
             currentModalItems.push(newItem);
             renderModalItems();
             document.getElementById('modalServiceInputContainer').style.display = 'none';
@@ -937,7 +841,6 @@
             const endDate = endDateFilter.value;
             let filteredOrders = allOrders;
 
-            // Quick Filters
             if (activeServiceFilter !== 'all') {
                 filteredOrders = filteredOrders.filter(order => {
                     const isExpress = order.items.some(item => item.serviceType === 'Express');
@@ -946,7 +849,6 @@
                     return true;
                 });
             }
-
             if (activeSourceFilter !== 'all') {
                 filteredOrders = filteredOrders.filter(order => {
                     const source = (order.orderSource || 'call').toLowerCase(); 
@@ -955,13 +857,8 @@
                     return true;
                 });
             }
-
-            // Main Filters
             if (searchTerm) {
-                filteredOrders = filteredOrders.filter(order => 
-                    order._id.toLowerCase().includes(searchTerm) ||
-                    (order.customerID && order.customerID.customerName.toLowerCase().includes(searchTerm))
-                );
+                filteredOrders = filteredOrders.filter(order => order._id.toLowerCase().includes(searchTerm) || (order.customerID && order.customerID.customerName.toLowerCase().includes(searchTerm)));
             }
             if (orderStatus !== 'all') {
                 filteredOrders = filteredOrders.filter(order => order.orderStatus === orderStatus);
@@ -973,8 +870,7 @@
                 filteredOrders = filteredOrders.filter(order => new Date(order.orderedOn) >= new Date(startDate));
             }
             if (endDate) {
-                 const endOfDay = new Date(endDate);
-                 endOfDay.setHours(23, 59, 59, 999);
+                 const endOfDay = new Date(endDate); endOfDay.setHours(23, 59, 59, 999);
                 filteredOrders = filteredOrders.filter(order => new Date(order.orderedOn) <= endOfDay);
             }
             renderOrders(filteredOrders);
@@ -982,54 +878,34 @@
         
         function updateQuickFilterUI() {
             document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
-            
             if (activeServiceFilter === 'all' && activeSourceFilter === 'all') {
                 document.querySelector('.quick-filter-btn[data-filter-group="all"]').classList.add('active');
             } else {
-                if (activeServiceFilter !== 'all') {
-                    document.querySelector(`.quick-filter-btn[data-filter-group="service"][data-filter-value="${activeServiceFilter}"]`).classList.add('active');
-                }
-                if (activeSourceFilter !== 'all') {
-                    document.querySelector(`.quick-filter-btn[data-filter-group="source"][data-filter-value="${activeSourceFilter}"]`).classList.add('active');
-                }
+                if (activeServiceFilter !== 'all') document.querySelector(`.quick-filter-btn[data-filter-group="service"][data-filter-value="${activeServiceFilter}"]`).classList.add('active');
+                if (activeSourceFilter !== 'all') document.querySelector(`.quick-filter-btn[data-filter-group="source"][data-filter-value="${activeSourceFilter}"]`).classList.add('active');
             }
         }
         
         quickFiltersContainer.addEventListener('click', (e) => {
             if (!e.target.matches('.quick-filter-btn')) return;
-            const button = e.target;
-            const group = button.dataset.filterGroup;
-            const value = button.dataset.filterValue;
-
-            if (group === 'all') {
-                activeServiceFilter = 'all';
-                activeSourceFilter = 'all';
-            } else if (group === 'service') {
-                activeServiceFilter = (activeServiceFilter === value) ? 'all' : value;
-            } else if (group === 'source') {
-                activeSourceFilter = (activeSourceFilter === value) ? 'all' : value;
+            const { filterGroup, filterValue } = e.target.dataset;
+            if (filterGroup === 'all') {
+                activeServiceFilter = 'all'; activeSourceFilter = 'all';
+            } else if (filterGroup === 'service') {
+                activeServiceFilter = (activeServiceFilter === filterValue) ? 'all' : filterValue;
+            } else if (filterGroup === 'source') {
+                activeSourceFilter = (activeSourceFilter === filterValue) ? 'all' : filterValue;
             }
             updateQuickFilterUI();
             applyFilters();
         });
 
-
-        searchInput.addEventListener('input', applyFilters);
-        orderStatusFilter.addEventListener('change', applyFilters);
-        paymentStatusFilter.addEventListener('change', applyFilters);
-        startDateFilter.addEventListener('change', applyFilters);
-        endDateFilter.addEventListener('change', applyFilters);
+        [searchInput, orderStatusFilter, paymentStatusFilter, startDateFilter, endDateFilter].forEach(el => el.addEventListener('input', applyFilters));
         clearFiltersBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            orderStatusFilter.value = 'all';
-            paymentStatusFilter.value = 'all';
-            startDateFilter.value = '';
-            endDateFilter.value = '';
-            
-            activeServiceFilter = 'all';
-            activeSourceFilter = 'all';
+            searchInput.value = ''; orderStatusFilter.value = 'all'; paymentStatusFilter.value = 'all';
+            startDateFilter.value = ''; endDateFilter.value = '';
+            activeServiceFilter = 'all'; activeSourceFilter = 'all';
             updateQuickFilterUI();
-
             applyFilters();
         });
 
@@ -1046,26 +922,17 @@
 
         document.getElementById('paymentStatus').addEventListener('change', (e) => {
             const paymentDetails = document.getElementById('paymentDetailsSection');
-            if (e.target.value === 'Confirmed') {
-                paymentDetails.style.display = 'grid';
-                if (!e.target.disabled) {
-                    document.getElementById('paymentMethod').disabled = false;
-                    document.getElementById('transactionID').disabled = false;
-                }
+            paymentDetails.style.display = e.target.value === 'Confirmed' ? 'grid' : 'none';
+            if (e.target.value === 'Confirmed' && !e.target.disabled) {
+                document.getElementById('paymentMethod').disabled = false;
+                document.getElementById('transactionID').disabled = false;
                 document.getElementById('paymentMethod').dispatchEvent(new Event('change'));
-            } else {
-                paymentDetails.style.display = 'none';
             }
         });
         
         document.getElementById('paymentMethod').addEventListener('change', (e) => {
-            const transactionContainer = document.getElementById('transactionIdContainer');
-            if(e.target.value === 'Cash') {
-                transactionContainer.style.display = 'none';
-                document.getElementById('transactionID').value = '';
-            } else {
-                transactionContainer.style.display = 'block';
-            }
+            document.getElementById('transactionIdContainer').style.display = e.target.value === 'Cash' ? 'none' : 'block';
+            if(e.target.value === 'Cash') document.getElementById('transactionID').value = '';
         });
 
         document.getElementById('orderUpdateForm').addEventListener('submit', async (e) => {
@@ -1075,11 +942,11 @@
             const data = Object.fromEntries(formData.entries());
 
             if (data.paymentStatus !== 'Confirmed') {
-                data.paymentMethod = 'Cash';
-                data.transactionID = '';
+                data.paymentMethod = 'Cash'; data.transactionID = '';
             }
             if (!data.pickupAgent) data.pickupAgent = null;
             if (!data.deliveryAgent) data.deliveryAgent = null;
+            if (!data.pickupSlot) data.pickupSlot = null;
 
             data.items = currentModalItems;
                
@@ -1091,13 +958,10 @@
                 });
                 if (response.status === 401) return window.location.href = '/';
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.message);
+                    const err = await response.json(); throw new Error(err.message);
                 }
-                   
                 await fetchAndRender();
                 closeModal();
-                   
             } catch (error) {
                 alert(`Error updating order: ${error.message}`);
             }
@@ -1105,29 +969,20 @@
            
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
         document.getElementById('cancelBtn').addEventListener('click', closeModal);
-        window.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
+        window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
         async function fetchAndRender() {
              try {
                 document.getElementById('loadingState').style.display = 'flex';
                 document.getElementById('orderListContainer').style.display = 'none';
 
-                const responses = await Promise.all([
-                    fetch('/api/orders'),
-                    fetch('/api/staff/agents'),
-                    fetch('/api/slots'),
-                    fetch('/api/services')
+                const [ordersRes, agentsRes, slotsRes, servicesRes] = await Promise.all([
+                    fetch('/api/orders'), fetch('/api/staff/agents'), fetch('/api/slots'), fetch('/api/services')
                 ]);
-
-                if (responses.some(res => res.status === 401)) {
+                if ([ordersRes, agentsRes, slotsRes, servicesRes].some(res => res.status === 401)) {
                     alert('Your session has expired. Please log in again.');
-                    window.location.href = '/';
-                    return;
+                    return window.location.href = '/';
                 }
-
-                const [ordersRes, agentsRes, slotsRes, servicesRes] = responses;
 
                 allOrders = await ordersRes.json();
                 availableAgents = await agentsRes.json();
@@ -1149,4 +1004,4 @@
         fetchAndRender();
     </script>
 </body>
-</html>
+</html>     

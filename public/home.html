@@ -98,7 +98,7 @@
             }
         }
 
-        /* ADDED: Styles for the logout button */
+        /* Styles for the logout button */
         .sidebar {
             display: flex;
             flex-direction: column;
@@ -108,7 +108,6 @@
         .sidebar-footer {
             padding: 10px 15px;
             border-top: 1px solid #374151;
-            /* Optional: adds a nice separator */
         }
 
         .logout-link {
@@ -128,41 +127,38 @@
 
         .logout-link:hover {
             background-color: #be123c;
-            /* A distinct red color for logout action */
             color: #fff;
+        }
+
+        /* 1. ADDED THIS CSS FOR THE MIDDLE CARD */
+        .action-card.customers-highlight {
+            background-color: #4f46e5; /* Light indigo color */
+            border-color: #6366f1;
+            color: #e0e7ff;
+        }
+        
+        .action-card.customers-highlight:hover {
+            background-color: #4338ca; /* Slightly darker indigo for hover */
+            border-color: #4f46e5;
         }
     </style>
 </head>
 
 <body>
-    <nav class="sidebar">
+     <nav class="sidebar">
         <div>
             <div class="logo">
                 <div class="logo-icon">WX</div>
                 <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
             </div>
             <ul class="nav-menu">
-                <li class="nav-item"><a href="/home.html" class="nav-link active">
-                        <div class="nav-icon">📊</div>Dashboard
-                    </a></li>
-                <li class="nav-item"><a href="/orders.html" class="nav-link">
-                        <div class="nav-icon">📦</div>Orders
-                    </a></li>
-                <li class="nav-item"><a href="/customers.html" class="nav-link">
-                        <div class="nav-icon">👥</div>Customers
-                    </a></li>
-                <li class="nav-item"><a href="/slots.html" class="nav-link">
-                        <div class="nav-icon">🗓️</div>Slots
-                    </a></li>
-                <li class="nav-item"><a href="#" class="nav-link">
-                        <div class="nav-icon">🔔</div>Notifications
-                    </a></li>
-                <li class="nav-item"><a href="#" class="nav-link">
-                        <div class="nav-icon">📈</div>Reports
-                    </a></li>
-                <li class="nav-item"><a href="/staff.html" class="nav-link">
-                        <div class="nav-icon">👨‍💼</div>Staff
-                    </a></li>
+                <li class="nav-item"><a href="/home.html" class="nav-link active"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link "><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="/reports.html" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -260,7 +256,7 @@
                     <div class="action-title">Manage Orders</div>
                     <div class="action-description">View, update, and track all orders</div>
                 </a>
-                <a href="/customers.html" class="action-card customers">
+                <a href="/customers.html" class="action-card customers-highlight">
                     <div class="action-title">Add Customer</div>
                     <div class="action-description">Create new customer profiles and bookings</div>
                 </a>
