@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Dashboard</title>
+    <link rel="stylesheet" href="/styles/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for the new dashboard UI */
+        .date-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .date-filter-group .filter-btn {
+            background-color: #43444a;
+            border: 1px solid #5a5b61;
+            color: #e5e7eb;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .date-filter-group .filter-btn.active,
+        .date-filter-group .filter-btn:hover {
+            background-color: #4f46e5;
+            border-color: #6366f1;
+            color: #fff;
+        }
+
+        .date-filter-group .date-input {
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            color: #e5e7eb;
+            padding: 7px 12px;
+            border-radius: 6px;
+        }
+
+        .stat-value {
+            font-size: 2.25rem;
+        }
+
+        .dashboard-section {
+            min-height: 200px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(30, 41, 59, 0.5);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loader {
+            border: 4px solid #4b5563;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Styles for the logout button */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sidebar-footer {
+            padding: 10px 15px;
+            border-top: 1px solid #374151;
+        }
+
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+
+        .logout-link .nav-icon {
+            margin-right: 12px;
+        }
+
+        .logout-link:hover {
+            background-color: #be123c;
+            color: #fff;
+        }
+
+        /* 1. ADDED THIS CSS FOR THE MIDDLE CARD */
+        .action-card.customers-highlight {
+            background-color: #4f46e5; /* Light indigo color */
+            border-color: #6366f1;
+            color: #e0e7ff;
+        }
+        
+        .action-card.customers-highlight:hover {
+            background-color: #4338ca; /* Slightly darker indigo for hover */
+            border-color: #4f46e5;
+        }
+    </style>
+</head>
+
+<body>
+     <nav class="sidebar">
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link active"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link "><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="/reports.html" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+            </div>
+            <div class="user-profile">
+                <div class="profile-avatar">A</div>
+                <div>
+                    <div style="font-weight: 600;">Admin</div>
+                    <div style="font-size: 12px; color: #6b7280;">Operations</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="operations-header">
+            <div>
+                <h2 class="operations-title">Operations Overview</h2>
+                <p class="operations-subtitle">Real-time insights into your laundry operations</p>
+            </div>
+            <div class="date-filter-group">
+                <button class="filter-btn" data-days="1">Today</button>
+                <button class="filter-btn active" data-days="7">Last 7 Days</button>
+                <button class="filter-btn" data-days="30">Last 30 Days</button>
+                <input type="date" id="startDate" class="date-input">
+                <input type="date" id="endDate" class="date-input">
+                <button class="filter-btn" id="applyRangeBtn">Apply</button>
+            </div>
+        </div>
+
+        <div style="position: relative;">
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="loader"></div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon revenue">💰</div>
+                    </div>
+                    <div class="stat-value" id="totalRevenueStat">₹0</div>
+                    <div class="stat-label">Revenue (Confirmed)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon revenue">💵</div>
+                    </div>
+                    <div class="stat-value" id="pendingRevenueStat">₹0</div>
+                    <div class="stat-label">Pending Revenue</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon orders">📦</div>
+                    </div>
+                    <div class="stat-value" id="totalOrdersStat">0</div>
+                    <div class="stat-label">Total Orders</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon customers">👥</div>
+                    </div>
+                    <div class="stat-value" id="activeCustomersStat">0</div>
+                    <div class="stat-label">Active Customers</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h3 class="section-title">Order Status Breakdown</h3>
+                    </div>
+                    <div class="chart-container"><canvas id="orderStatusChart"></canvas></div>
+                </div>
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h3 class="section-title">Recent Orders</h3><a href="/orders.html" class="view-all-link">View
+                            All</a>
+                    </div>
+                    <div id="recentOrdersList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 32px;">
+            <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Quick Actions</h3>
+            <div class="actions-grid">
+                <a href="/orders.html" class="action-card orders">
+                    <div class="action-title">Manage Orders</div>
+                    <div class="action-description">View, update, and track all orders</div>
+                </a>
+                <a href="/customers.html" class="action-card customers-highlight">
+                    <div class="action-title">Add Customer</div>
+                    <div class="action-description">Create new customer profiles and bookings</div>
+                </a>
+                <a href="/slots.html" class="action-card slots">
+                    <div class="action-title">Configure Slots</div>
+                    <div class="action-description">Manage pickup and delivery time slots</div>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const dateButtons = document.querySelectorAll('.filter-btn[data-days]');
+            const applyRangeBtn = document.getElementById('applyRangeBtn');
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            let orderStatusChart = null;
+
+            // --- DATE UTILITIES ---
+            const formatDate = (date) => date.toISOString().split('T')[0];
+            const getStartDate = (days) => {
+                const date = new Date();
+                date.setDate(date.getDate() - (days - 1));
+                return formatDate(date);
+            };
+
+            // --- API & RENDERING LOGIC ---
+            const fetchAndRenderDashboard = async (startDate, endDate) => {
+                loadingOverlay.classList.add('visible');
+                try {
+                    const response = await fetch(`/api/dashboard/stats?startDate=${startDate}&endDate=${endDate}`);
+
+                    if (response.status === 401) {
+                        window.location.href = '/'; // Redirect to login if session is invalid
+                        return;
+                    }
+                    if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+
+                    const stats = await response.json();
+
+                    renderStats(stats);
+                    renderOrderStatusChart(stats.orderStatusBreakdown);
+                    renderRecentOrders(stats.recentOrders);
+                } catch (error) {
+                    console.error('Error loading dashboard:', error);
+                    alert('Failed to load dashboard data. Please check your connection and try again.');
+                } finally {
+                    loadingOverlay.classList.remove('visible');
+                }
+            };
+
+            const renderStats = (stats) => {
+                document.getElementById('totalOrdersStat').textContent = stats.totalOrders;
+                document.getElementById('totalRevenueStat').textContent = `₹${stats.totalRevenue.toLocaleString('en-IN')}`;
+                document.getElementById('activeCustomersStat').textContent = stats.totalActiveCustomers;
+                document.getElementById('pendingRevenueStat').textContent = `₹${(stats.pendingRevenue || 0).toLocaleString('en-IN')}`;
+            };
+
+            const renderRecentOrders = (orders) => {
+                const container = document.getElementById('recentOrdersList');
+                if (!orders || orders.length === 0) {
+                    container.innerHTML = `<div class="empty-state" style="padding: 20px;">No recent orders found in this period.</div>`;
+                    return;
+                }
+                container.innerHTML = orders.map(order => {
+                    const customerName = order.customerID?.customerName || 'N/A';
+                    // The society name is not included in the recentOrders populate, so this would be 'N/A'
+                    const statusClass = (order.orderStatus || '').toLowerCase().replace(/ /g, '-').replace('pick-up-', '');
+                    return `
+                    <div class="order-item">
+                        <div class="order-info">
+                            <h4>#${order._id.slice(-6).toUpperCase()}</h4>
+                            <div class="order-details">${customerName}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="order-status ${statusClass}">${order.orderStatus}</div>
+                            <div class="order-amount">₹${order.billAmount.toLocaleString('en-IN')}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            };
+
+            const renderOrderStatusChart = (breakdown) => {
+                const ctx = document.getElementById('orderStatusChart').getContext('2d');
+                const statusMap = breakdown.reduce((acc, item) => ({ ...acc, [item._id]: item.count }), {});
+
+                const labels = ['New', 'Pick-up Pending', 'In-Progress', 'Delivery Pending', 'Delivered', 'Cancelled'];
+                const data = labels.map(label => statusMap[label] || 0);
+
+                const statusColors = {
+                    'New': '#3b82f6', 'Pick-up Pending': '#f59e0b', 'In-Progress': '#8b5cf6',
+                    'Delivery Pending': '#facc15', 'Delivered': '#22c55e', 'Cancelled': '#ef4444'
+                };
+
+                if (orderStatusChart) orderStatusChart.destroy();
+
+                orderStatusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Order Count',
+                            data: data,
+                            backgroundColor: labels.map(label => statusColors[label]),
+                            borderColor: '#1e293b',
+                            borderWidth: 2,
+                            hoverOffset: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: 'black', padding: 15, font: { size: 12 } } }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            };
+
+            // --- EVENT LISTENERS ---
+            dateButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    dateButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    startDateInput.value = ''; // Clear date inputs when a preset button is clicked
+                    endDateInput.value = '';
+                    const days = button.dataset.days;
+                    fetchAndRenderDashboard(getStartDate(days), formatDate(new Date()));
+                });
+            });
+
+            applyRangeBtn.addEventListener('click', () => {
+                const start = startDateInput.value;
+                const end = endDateInput.value;
+                if (!start || !end) {
+                    alert('Please select both a start and end date.');
+                    return;
+                }
+                if (new Date(start) > new Date(end)) {
+                    alert('Start date cannot be after the end date.');
+                    return;
+                }
+                dateButtons.forEach(btn => btn.classList.remove('active'));
+                fetchAndRenderDashboard(start, end);
+            });
+
+            [startDateInput, endDateInput].forEach(input => input.addEventListener('change', () => {
+                dateButtons.forEach(btn => btn.classList.remove('active'));
+            }));
+
+            // --- INITIAL LOAD ---
+            fetchAndRenderDashboard(getStartDate(7), formatDate(new Date()));
+        });
+    </script>
+</body>
+
+</html>

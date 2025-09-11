@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+   <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body  class="auth-page">
+    <div class="container">
+        <h1>Sign Up</h1>
+        <form id="signupForm" action="/signup" method="POST">
+            <label for="email">Email (this will be your User ID):</label><br>
+            <input type="email" id="email" name="email" required><br><br>
+
+            <label for="password">Password:</label><br>
+            <input type="password" id="password" name="password" required><br><br>
+
+            <label for="phone">Phone Number:</label><br>
+            <input type="tel" id="phone" name="phone"><br><br>
+
+            <label for="role">Role:</label><br>
+            <select id="role" name="role" required>
+                <option value="">Loading Roles...</option>
+            </select><br><br>
+
+            <label for="society">Assigned Society Name:</label><br>
+            <select id="society" name="society">
+              <option value="">-- Select Society --</option>
+              <option value="landmark">ASBL Landmark</option>
+              <option value="lakecity">ASBL Lake City</option>
+              <option value="springs">ASBL Springs</option>
+              <option value="skyline">ASBL Skyline</option>
+            </select><br><br>
+
+            <button type="submit">Sign Up</button>
+        </form>
+        <p>Already have an account? <a href="/login.html">Log In</a></p>
+    </div>
+
+    <script>
+        // This function runs as soon as the HTML page content is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get a reference to the role dropdown element
+            const roleDropdown = document.getElementById('role');
+
+            // Use the fetch API to make a GET request to our backend
+            fetch('/api/roles')
+                .then(response => {
+                    // Check if the request was successful
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    // Parse the JSON response body
+                    return response.json();
+                })
+                .then(roles => {
+                    // Clear the "Loading..." message
+                    roleDropdown.innerHTML = '';
+
+                    // Add a default, non-selectable option
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = "";
+                    defaultOption.textContent = "-- Select a Role --";
+                    defaultOption.disabled = true;
+                    defaultOption.selected = true;
+                    roleDropdown.appendChild(defaultOption);
+
+                    // Loop through each role received  from the API
+                    roles.forEach(role => {
+                        // Create a new <option> element
+                        const option = document.createElement('option');
+                        
+                        // The userSchema for signup expects a string, so we use role_name
+                        // For example: <option value="Society Admin">Society Admin</option>
+                        option.value = role.role_name;
+                        option.textContent = role.role_name;
+                        
+                        // Add the new option to the dropdown
+                        roleDropdown.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    // If there's an error, log it and update the dropdown
+                    console.error('Error fetching roles:', error);
+                    roleDropdown.innerHTML = '<option value="">Error loading roles</option>';
+                });
+        });
+    </script>
+
+</body>
+</html>

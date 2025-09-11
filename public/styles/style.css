@@ -1,0 +1,1438 @@
+/* ==========================================================================
+   FILE: style.css
+   THEME: Clean Professional Admin Dashboard
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Global Resets & Typography
+   ========================================================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background-color: #fafbfc;
+    color: #1d2329;
+    line-height: 1.5;
+    font-size: 14px;
+    min-height: 100vh;
+}
+
+/* ==========================================================================
+   2. Sidebar Navigation
+   ========================================================================== */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid #e1e8ed;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 20px;
+    border-bottom: 1px solid #e1e8ed;
+}
+
+.logo-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: white;
+}
+
+.logo-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1d2329;
+    line-height: 1.2;
+}
+
+.nav-menu {
+    list-style: none;
+    padding: 16px 0;
+    flex: 1;
+}
+
+.nav-item {
+    margin: 0;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: #536471;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin: 0 12px;
+    border-radius: 8px;
+}
+
+.nav-link:hover {
+    background: #f7f9fa;
+    color: #1d2329;
+}
+
+.nav-link.active {
+    background: #e8f4fd;
+    color: #1d9bf0;
+    font-weight: 600;
+}
+
+.nav-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+/* ==========================================================================
+   3. Main Layout & Header
+   ========================================================================== */
+.main-content {
+    margin-left: 260px;
+    padding: 0;
+    min-height: 100vh;
+    background: #fafbfc;
+}
+
+.header {
+    background: #ffffff;
+    border-bottom: 1px solid #e1e8ed;
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1d2329;
+    margin: 0;
+}
+
+.page-subtitle {
+    font-size: 14px;
+    color: #536471;
+    margin: 4px 0 0 0;
+    font-weight: 400;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.add-button {
+    background: #1d9bf0;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(29, 155, 240, 0.2);
+}
+
+.add-button:hover {
+    background: #1a8cd8;
+    box-shadow: 0 2px 8px rgba(29, 155, 240, 0.3);
+}
+
+/* ==========================================================================
+   4. Content Area Styling
+   ========================================================================== */
+.content-wrapper {
+    padding: 32px;
+}
+
+/* Search Bar */
+.search-bar {
+    margin-bottom: 24px;
+}
+
+.search-input-wrapper {
+    position: relative;
+    max-width: 400px;
+}
+
+.search-input-wrapper .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #536471;
+    font-size: 16px;
+}
+
+#searchInput {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 12px 16px 12px 40px;
+    color: #1d2329;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#searchInput::placeholder {
+    color: #536471;
+}
+
+#searchInput:focus {
+    outline: none;
+    border-color: #1d9bf0;
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+}
+
+/* ==========================================================================
+   5. Customer Management Styles
+   ========================================================================== */
+.customer-list {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e1e8ed;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.list-header {
+    display: grid;
+    grid-template-columns: 2.5fr 1.5fr 2fr 1fr 1.2fr;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 24px;
+    background: #f7f9fa;
+    border-bottom: 1px solid #e1e8ed;
+    color: #536471;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.list-row {
+    display: grid;
+    grid-template-columns: 2.5fr 1.5fr 2fr 1fr 1.2fr;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 24px;
+    font-size: 14px;
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.15s ease;
+}
+
+.list-row:last-child {
+    border-bottom: none;
+}
+
+.list-row:hover {
+    background-color: #f7f9fa;
+}
+
+/* Customer Cell Styles */
+.customer-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.customer-cell .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.customer-cell div {
+    display: flex;
+    flex-direction: column;
+}
+
+.customer-cell strong {
+    font-weight: 600;
+    color: #1d2329;
+    font-size: 14px;
+}
+
+.customer-cell small,
+.location-cell small {
+    font-size: 12px;
+    color: #536471;
+    margin-top: 2px;
+}
+
+.contact-cell {
+    color: #536471;
+}
+
+.location-cell strong {
+    color: #1d2329;
+    font-weight: 600;
+    display: block;
+}
+
+.orders-cell {
+    color: #536471;
+    font-weight: 500;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 16px;
+}
+
+.action-link {
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.action-link.view {
+    color: #1d9bf0;
+}
+
+.action-link.view:hover {
+    color: #1a8cd8;
+}
+
+.action-link.book {
+    color: #f91880;
+}
+
+.action-link.book:hover {
+    color: #e2005d;
+}
+
+/* ==========================================================================
+   6. Staff Management Styles
+   ========================================================================== */
+.staff-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    padding: 32px;
+}
+
+.staff-card {
+    background: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.staff-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    border-color: #d9d9d9;
+}
+
+.staff-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.staff-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.staff-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.staff-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2329;
+    margin: 0;
+}
+
+.staff-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+    color: white;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.staff-id {
+    font-size: 12px;
+    color: #536471;
+    margin-top: 2px;
+}
+
+.staff-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: #f7f9fa;
+    color: #536471;
+    font-size: 14px;
+}
+
+.action-btn:hover {
+    background: #e1e8ed;
+    color: #1d2329;
+}
+
+.delete-btn:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    background: #e8f4fd;
+    color: #1d9bf0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.contact-info {
+    margin-bottom: 0;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #536471;
+}
+
+.contact-icon {
+    width: 16px;
+    color: #657786;
+}
+
+/* ==========================================================================
+   7. Dashboard Specific Styles
+   ========================================================================== */
+.operations-header {
+    padding: 32px 32px 0 32px;
+    margin-bottom: 24px;
+}
+
+.operations-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1d2329;
+    margin: 0;
+}
+
+.operations-subtitle {
+    color: #536471;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.time-filter {
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #1d2329;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    padding: 0 32px 32px 32px;
+    margin-bottom: 0;
+}
+
+.stat-card {
+    background: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    border-color: #d9d9d9;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.stat-icon.orders { background: #e8f4fd; color: #1d9bf0; }
+.stat-icon.revenue { background: #f0f9f4; color: #16a34a; }
+.stat-icon.customers { background: #fef3e8; color: #ea580c; }
+.stat-icon.societies { background: #f3f4f6; color: #6b7280; }
+
+.stat-change {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-change.positive {
+    background: #f0f9f4;
+    color: #16a34a;
+}
+
+.stat-change.negative {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1d2329;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #536471;
+    font-weight: 500;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 20px;
+    padding: 0 32px 32px 32px;
+}
+
+.dashboard-section {
+    background: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2329;
+}
+
+.view-all-link {
+    color: #1d9bf0;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.view-all-link:hover {
+    color: #1a8cd8;
+}
+
+/* Order Status Items */
+.status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    font-size: 13px;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-dot.pending { background: #f59e0b; }
+.status-dot.picked-up { background: #3b82f6; }
+.status-dot.in-process { background: #8b5cf6; }
+.status-dot.ready { background: #10b981; }
+.status-dot.out-for-delivery { background: #f97316; }
+.status-dot.delivered { background: #6b7280; }
+
+.status-label {
+    color: #1d2329;
+    font-weight: 500;
+}
+
+.status-count {
+    color: #536471;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Recent Orders */
+.order-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.order-item:first-child {
+    padding-top: 0;
+}
+
+.order-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.order-info h4 {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1d2329;
+    margin-bottom: 4px;
+}
+
+.order-details {
+    font-size: 12px;
+    color: #536471;
+}
+
+.order-status {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.order-status.in-process {
+    background: #f3f4f6;
+    color: #8b5cf6;
+}
+
+.order-status.ready {
+    background: #f0f9f4;
+    color: #10b981;
+}
+
+.order-status.picked-up {
+    background: #e8f4fd;
+    color: #3b82f6;
+}
+
+.order-amount {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1d2329;
+}
+
+.order-time {
+    font-size: 11px;
+    color: #536471;
+}
+
+/* Quick Actions */
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 0 32px 32px 32px;
+}
+
+.action-card {
+    border-radius: 12px;
+    padding: 20px;
+    color: white;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.action-card.analytics {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.action-card.slots {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.action-card.orders {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.action-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.action-description {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* ==========================================================================
+   8. Modal Styles
+   ========================================================================== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: #ffffff;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 480px;
+    border: 1px solid #e1e8ed;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 28px;
+    border-bottom: 1px solid #e1e8ed;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1d2329;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #536471;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.close-button:hover {
+    background: #f7f9fa;
+    color: #1d2329;
+}
+
+/* Form Styles */
+#customerForm,
+#staffForm {
+    padding: 28px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #1d2329;
+    font-size: 13px;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    color: #1d2329;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.form-select[multiple] {
+    height: 120px;
+}
+
+.form-input:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #1d9bf0;
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e1e8ed;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #1d2329;
+    border: 1px solid #d9d9d9;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: #1d9bf0;
+    color: white;
+    border: none;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: #f7f9fa;
+    border-color: #c4c4c4;
+}
+
+.btn-primary:hover {
+    background: #1a8cd8;
+}
+
+/* ==========================================================================
+   9. Utility & State Styles
+   ========================================================================== */
+.empty-state {
+    text-align: center;
+    padding: 60px 40px;
+    color: #536471;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #1d2329;
+    font-weight: 600;
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 80px;
+    color: #536471;
+    font-size: 14px;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e1e8ed;
+    border-top: 3px solid #1d9bf0;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 12px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   10. Authentication Pages Styles
+   ========================================================================== */
+body.auth-page {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #1d2329;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+
+.auth-page .container {
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.auth-page h1 {
+    margin-bottom: 32px;
+    color: #1d2329;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.auth-page form {
+    text-align: left;
+}
+
+.auth-page label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1d2329;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.auth-page input,
+.auth-page select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1d2329;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.auth-page input:focus,
+.auth-page select:focus {
+    border-color: #1d9bf0;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+}
+
+.auth-page button[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background: #1d9bf0;
+    border: none;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    margin-top: 8px;
+}
+
+.auth-page button[type="submit"]:hover {
+    background: #1a8cd8;
+}
+
+.auth-page p {
+    margin-top: 24px;
+    font-size: 14px;
+    color: #536471;
+}
+
+.auth-page a {
+    color: #1d9bf0;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-page a:hover {
+    text-decoration: underline;
+}
+
+.auth-page small {
+    color: #536471;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+    font-weight: 400;
+}
+
+/* ==========================================================================
+   11. Responsive Design
+   ========================================================================== */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        padding: 0 20px 20px 20px;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        padding: 0 20px 20px 20px;
+    }
+    
+    .operations-header {
+        padding: 20px;
+    }
+    
+    .header {
+        padding: 16px 20px;
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .list-header,
+    .list-row {
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+    
+    .contact-cell,
+    .orders-cell {
+        display: none;
+    }
+    
+    .actions-grid {
+        grid-template-columns: 1fr;
+        padding: 0 20px 20px 20px;
+    }
+}
+
+/* ==========================================================================
+   12. Additional Professional Enhancements
+   ========================================================================== */
+
+/* Header Profile & Search */
+.search-box {
+    position: relative;
+    max-width: 300px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #f7f9fa;
+}
+
+.search-box .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #536471;
+    font-size: 14px;
+}
+
+.notification-badge {
+    width: 36px;
+    height: 36px;
+    background: #f7f9fa;
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.notification-badge:hover {
+    background: #e1e8ed;
+}
+
+.notification-badge::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: #dc2626;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.user-profile:hover {
+    background: #f7f9fa;
+}
+
+.profile-avatar {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+    color: white;
+}
+
+/* Logout Button */
+.logout-btn {
+    background: #ffffff;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+}
+
+/* Status Progress Bars */
+.status-bar {
+    width: 60px;
+    height: 4px;
+    background: #f1f3f4;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-left: auto;
+}
+
+.status-progress {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.status-progress.pending { background: #f59e0b; }
+.status-progress.picked-up { background: #3b82f6; }
+.status-progress.in-process { background: #8b5cf6; }
+.status-progress.ready { background: #10b981; }
+.status-progress.out-for-delivery { background: #f97316; }
+.status-progress.delivered { background: #6b7280; }
+
+/* Icon replacements for professional look */
+.nav-icon::before {
+    font-family: system-ui;
+    font-weight: 500;
+}
+
+/* Clean icon system using CSS */
+.icon-dashboard::before { content: '▤'; }
+.icon-orders::before { content: '◧'; }
+.icon-customers::before { content: '⚊'; }
+.icon-staff::before { content: '◉'; }
+.icon-slots::before { content: '▦'; }
+.icon-notifications::before { content: '◉'; }
+.icon-reports::before { content: '▤'; }
+
+/* Customer Grid (Alternative to List View) */
+.customer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    padding: 32px;
+}
+
+.customer-card {
+    background: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.customer-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    border-color: #d9d9d9;
+}
+
+.customer-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.customer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.customer-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2329;
+    margin: 0;
+}
+
+.customer-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+    color: white;
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+/* Form validation states */
+.form-input.error,
+.form-select.error {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.form-input.success,
+.form-select.success {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.error-message {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.success-message {
+    color: #16a34a;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* Loading states */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s ease infinite;
+}
+
+/* Professional table alternating rows */
+.list-row:nth-child(even) {
+    background: #fafbfc;
+}
+
+.list-row:nth-child(even):hover {
+    background: #f7f9fa;
+}
+
+/* Focus management for accessibility */
+.nav-link:focus,
+.action-link:focus,
+.btn-primary:focus,
+.btn-secondary:focus {
+    outline: 2px solid #1d9bf0;
+    outline-offset: 2px;
+}
+
+/* Clean scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f3f4;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d9d9d9;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #c4c4c4;
+}

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Reports</title>
+    <link rel="stylesheet" href="/styles/style.css">
+    <style>
+        /* General body styling for a clean look */
+        body {
+            background-color: #f8f9fa; /* A very light gray to make the content pop */
+        }
+
+        /* Override main content to ensure a pure white workspace */
+        .main-content {
+            background-color: #ffffff;
+        }
+
+        .report-section {
+            background-color: #fff;
+            padding: 24px;
+            border-radius: 8px; /* Slightly reduced radius for a sharper look */
+            border: 1px solid #e9ecef; /* Replaced shadow with a subtle border */
+            margin-bottom: 24px;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .report-title {
+            font-size: 1.15rem; /* Slightly smaller for a cleaner feel */
+            font-weight: 600;
+            color: #212529; /* Darker text for better contrast */
+        }
+
+        .report-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .report-date-input {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+
+        /* Updated button style for a modern, clean UI */
+        .generate-btn {
+            background-color: #343a40; /* Dark gray for a professional look */
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .generate-btn:hover {
+            background-color: #23272b; /* Darken on hover */
+        }
+
+        .generate-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .report-placeholder {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            border: 1px dashed #ced4da; /* A lighter, cleaner dashed border */
+            border-radius: 8px;
+            background-color: #f8f9fa; /* Slight background color for placeholder */
+        }
+
+        .report-placeholder .icon {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            color: #adb5bd;
+        }
+
+        /* Sidebar styles remain for contrast and navigation */
+        .sidebar { display: flex; flex-direction: column; }
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 15px;
+        }
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+        .logout-link .nav-icon { margin-right: 12px; }
+        .logout-link:hover {
+            background-color: #be123c;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link "><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="/reports.html" class="nav-link active"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Reports</h1>
+                <p class="page-subtitle">Generate and download operational reports</p>
+            </div>
+        </header>
+
+        <div class="report-section">
+            <div class="report-header">
+                <h2 class="report-title">Pickup Manifest</h2>
+                <div class="report-controls">
+                    <input type="date" id="pickupDate" class="report-date-input">
+                    <button id="generatePickupReport" class="generate-btn">Download Pickup PDF</button>
+                </div>
+            </div>
+            <div class="report-placeholder" id="pickupPlaceholder">
+                <div class="icon">🚚</div>
+                <p>Select a date to generate the pickup manifest for delivery agents.</p>
+            </div>
+        </div>
+
+        <div class="report-section">
+            <div class="report-header">
+                <h2 class="report-title">Delivery Manifest</h2>
+                <div class="report-controls">
+                    <input type="date" id="deliveryDate" class="report-date-input">
+                    <button id="generateDeliveryReport" class="generate-btn">Download Delivery PDF</button>
+                </div>
+            </div>
+            <div class="report-placeholder" id="deliveryPlaceholder">
+                <div class="icon">🏠</div>
+                <p>Select a date to generate the delivery manifest for delivery agents.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            const pickupDateInput = document.getElementById('pickupDate');
+            const deliveryDateInput = document.getElementById('deliveryDate');
+            pickupDateInput.value = today;
+            deliveryDateInput.value = today;
+
+            const pickupBtn = document.getElementById('generatePickupReport');
+            const deliveryBtn = document.getElementById('generateDeliveryReport');
+            
+            const pickupPlaceholder = document.getElementById('pickupPlaceholder');
+            const deliveryPlaceholder = document.getElementById('deliveryPlaceholder');
+
+            // Function to display messages in the placeholder area
+            const showMessage = (type, message) => {
+                const placeholder = type === 'pickups' ? pickupPlaceholder : deliveryPlaceholder;
+                const icon = type === 'pickups' ? '🚚' : '🏠';
+                placeholder.innerHTML = `<div class="icon" style="color: #dc3545;">⚠️</div><p style="color: #495057;">${message}</p>`;
+            };
+            
+            // Function to reset the placeholder message
+            const resetPlaceholder = (type) => {
+                const placeholder = type === 'pickups' ? pickupPlaceholder : deliveryPlaceholder;
+                const icon = type === 'pickups' ? '🚚' : '🏠';
+                const text = type === 'pickups' ? 'Select a date to generate the pickup manifest.' : 'Select a date to generate the delivery manifest.';
+                placeholder.innerHTML = `<div class="icon">${icon}</div><p>${text}</p>`;
+            }
+
+            const generateReport = async (reportType) => {
+                const isPickup = reportType === 'pickups';
+                const dateInput = isPickup ? pickupDateInput : deliveryDateInput;
+                const button = isPickup ? pickupBtn : deliveryBtn;
+                
+                resetPlaceholder(reportType); // Reset message on new attempt
+
+                const date = dateInput.value;
+                if (!date) {
+                    showMessage(reportType, 'Please select a valid date.');
+                    return;
+                }
+
+                const originalText = button.textContent;
+                button.textContent = 'Generating...';
+                button.disabled = true;
+
+                try {
+                    const response = await fetch(`/api/reports/${reportType}?date=${date}`);
+                    
+                    if (response.status === 401) {
+                         window.location.href = '/';
+                         return;
+                    }
+                     
+                    if (response.status === 404) {
+                        const errorData = await response.json();
+                        showMessage(reportType, errorData.message || 'No data available for the selected date.');
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.statusText}`);
+                    }
+                     
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `${reportType}_manifest_${date}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                } catch (error) {
+                    console.error(`Error generating ${reportType} report:`, error);
+                    showMessage(reportType, 'Failed to generate the report. Please try again.');
+                } finally {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
+            };
+             
+            pickupBtn.addEventListener('click', () => generateReport('pickups'));
+            deliveryBtn.addEventListener('click', () => generateReport('deliveries'));
+            
+            // Reset placeholder if the date is changed
+            pickupDateInput.addEventListener('change', () => resetPlaceholder('pickups'));
+            deliveryDateInput.addEventListener('change', () => resetPlaceholder('deliveries'));
+        });
+    </script>
+</body>
+</html>

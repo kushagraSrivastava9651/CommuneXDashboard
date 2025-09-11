@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Staff Management</title>
+    <link rel="stylesheet" href="/styles/style.css">
+    <style>
+        /* Styles for the checkbox group */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            border-radius: 6px;
+            max-height: 160px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item label {
+            font-weight: normal;
+            color: #374151;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #4f46e5;
+        }
+
+        /* Styles for the logout button */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 15px;
+        }
+
+        .logout-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+        }
+
+        .logout-link .nav-icon {
+            margin-right: 12px;
+        }
+
+        .logout-link:hover {
+            background-color: #be123c;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link "><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="/reports.html" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link active"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Staff</h1>
+                <p class="page-subtitle">Manage all operational staff members</p>
+            </div>
+            <div class="header-actions">
+                <button class="add-button" id="openAddModalBtn">
+                    <span>+</span> Add Staff Member
+                </button>
+            </div>
+        </header>
+
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <span style="margin-left: 12px;">Loading staff...</span>
+        </div>
+
+        <div class="staff-grid" id="staffGrid" style="display: none;"></div>
+    </main>
+
+    <div id="staffModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add Staff Member</h2>
+                <button class="close-button" id="closeModalBtn">&times;</button>
+            </div>
+
+            <form id="staffForm">
+                <input type="hidden" id="staff-id" name="id">
+                <div class="form-group">
+                    <label class="form-label" for="phone">Phone Number</label>
+                    <input type="tel" class="form-input" id="phone" name="phone" required pattern="\d{10}" title="Phone number must be exactly 10 digits." maxlength="10" inputmode="numeric">
+                    <small id="phone-exists-msg" style="color: #ef4444; font-size: 12px; margin-top: 4px; display: none;"></small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="name">Full Name</label>
+                    <input type="text" class="form-input" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address (Optional)</label>
+                    <input type="email" class="form-input" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="role">Role</label>
+                    <select class="form-select" id="role" name="role" required>
+                        <option value="">Loading roles...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned Stores</label>
+                    <div id="societyCheckboxContainer" class="checkbox-group">
+                        <p style="color: #6b7280; grid-column: 1 / -1;">Loading societies...</p>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">Add Staff Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+   <script>
+        // State and DOM Elements
+        let currentStaffList = [];
+        let phoneCheckTimeout;
+        const staffModal = document.getElementById('staffModal');
+        const staffForm = document.getElementById('staffForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const submitBtn = document.getElementById('submitBtn');
+        const staffIdInput = document.getElementById('staff-id');
+        const phoneInput = document.getElementById('phone');
+        const phoneExistsMsg = document.getElementById('phone-exists-msg');
+
+
+        // =================================================================
+        //                 DYNAMIC DATA POPULATION
+        // =================================================================
+        const populateRolesDropdown = async () => {
+            try {
+                const response = await fetch('/api/roles');
+                if (response.status === 401) return window.location.href = '/';
+                if (!response.ok) throw new Error('Failed to fetch roles');
+                const roles = await response.json();
+                const roleDropdown = document.getElementById('role');
+                roleDropdown.innerHTML = '<option value="" disabled selected>-- Select a Role --</option>';
+                roles.forEach(role => {
+                    roleDropdown.innerHTML += `<option value="${role._id}">${role.role_name}</option>`;
+                });
+            } catch (error) {
+                console.error(error);
+                document.getElementById('role').innerHTML = '<option value="">Error loading roles</option>';
+            }
+        };
+
+        const populateSocietiesDropdown = async () => {
+            const societyContainer = document.getElementById('societyCheckboxContainer');
+            try {
+                const response = await fetch('/api/societies');
+                if (response.status === 401) return window.location.href = '/';
+                if (!response.ok) throw new Error('Failed to fetch societies');
+                const societies = await response.json();
+
+                societyContainer.innerHTML = '';
+                if (societies.length === 0) {
+                    societyContainer.innerHTML = '<p style="color: #6b7280; grid-column: 1 / -1;">No societies found.</p>';
+                    return;
+                }
+
+                societies.forEach(society => {
+                    const checkboxId = `society-${society._id}`;
+                    societyContainer.innerHTML += `
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="${checkboxId}" name="society" value="${society._id}">
+                            <label for="${checkboxId}">${society.name}</label>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error(error);
+                societyContainer.innerHTML = '<p style="color: #ef4444; grid-column: 1 / -1;">Error loading societies.</p>';
+            }
+        };
+
+        // =================================================================
+        //                   CARD RENDERING
+        // =================================================================
+        function getInitials(name) {
+            if (!name) return '?';
+            const parts = name.trim().split(' ');
+            return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : name[0]).toUpperCase();
+        }
+
+        function generateStaffId(mongoId) {
+            return `STF-${mongoId.slice(-6).toUpperCase()}`;
+        }
+
+        function renderStaffCards(data = currentStaffList) {
+            const staffGrid = document.getElementById('staffGrid');
+            if (data.length === 0) {
+                staffGrid.innerHTML = `<div class="empty-state"><h3>No staff found</h3><p>Add a new staff member to get started.</p></div>`;
+                return;
+            }
+            staffGrid.innerHTML = data.map((staff) => {
+                const roleName = staff.role ? staff.role.role_name : 'Unassigned';
+                const societyNames = (staff.society && staff.society.length > 0)
+                    ? staff.society.map(s => s.name).join(', ')
+                    : 'N/A';
+
+                return `
+                <div class="staff-card">
+                    <div class="staff-header">
+                        <div class="staff-info">
+                            <div class="staff-avatar">${getInitials(staff.name)}</div>
+                            <div><h3>${staff.name}</h3><div class="staff-id">${generateStaffId(staff._id)}</div></div>
+                        </div>
+                        <div class="staff-actions">
+                            <button class="action-btn edit-btn" onclick="openModalForEdit('${staff._id}')" title="Edit">✏️</button>
+                         </div>
+                    </div>
+                    <div class="role-badge">${roleName}</div>
+                    <div class="contact-info">
+                        <div class="contact-item"><span class="contact-icon">📞</span> ${staff.phone || 'N/A'}</div>
+                        <div class="contact-item"><span class="contact-icon">📧</span> ${staff.email || 'N/A'}</div>
+                        <div class="contact-item"><span class="contact-icon">📍</span> ${societyNames}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // =================================================================
+        //                 FETCH & DELETE OPERATIONS
+        // =================================================================
+        const fetchStaff = async () => {
+            try {
+                document.getElementById('loadingState').style.display = 'flex';
+                document.getElementById('staffGrid').style.display = 'none';
+
+                const response = await fetch('/api/staff');
+                if (response.status === 401) return window.location.href = '/';
+                if (!response.ok) throw new Error(`Network Error: ${response.statusText}`);
+
+                currentStaffList = await response.json();
+                renderStaffCards();
+            } catch (error) {
+                console.error('Failed to fetch staff:', error);
+                document.getElementById('loadingState').innerHTML = `<div class="empty-state"><h3>⚠️ Error</h3><p>Could not load staff data.</p></div>`;
+            } finally {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('staffGrid').style.display = 'grid';
+            }
+        };
+
+        // =================================================================
+        //                   FORM VALIDATION
+        // =================================================================
+      
+        function validateForm() {
+            const phone = document.getElementById('phone').value;
+            const name = document.getElementById('name').value.trim();
+            const role = document.getElementById('role').value;
+            
+            // **MODIFIED**: Check if at least one society checkbox is selected.
+            const isSocietySelected = document.querySelectorAll('#societyCheckboxContainer input[name="society"]:checked').length > 0;
+
+            // Check if other required fields are filled.
+            const areFieldsFilled = phone.length === 10 && name !== '' && role !== '';
+
+            // A phone number is considered available if the message is hidden OR if it's the green welcome message.
+            const isPhoneAvailable = phoneExistsMsg.style.display === 'none' || phoneExistsMsg.style.color === 'green';
+
+            // **MODIFIED**: Enable the button only if all mandatory conditions are met.
+            submitBtn.disabled = !(areFieldsFilled && isPhoneAvailable && isSocietySelected);
+        }
+
+        // =================================================================
+        //                   MODAL HANDLING
+        // =================================================================
+        function openModalForAdd() {
+            staffForm.reset();
+            staffIdInput.value = '';
+            modalTitle.textContent = 'Add New Staff Member';
+            submitBtn.textContent = 'Add Staff Member';
+            phoneExistsMsg.style.display = 'none';
+            staffModal.style.display = 'block';
+        }
+
+        window.openModalForEdit = (id) => {
+            const staff = currentStaffList.find(s => s._id === id);
+            if (!staff) return;
+
+            staffForm.reset();
+            modalTitle.textContent = 'Edit Staff Member';
+            submitBtn.textContent = 'Save Changes';
+            phoneExistsMsg.style.display = 'none';
+
+            staffIdInput.value = staff._id;
+            document.getElementById('name').value = staff.name;
+            document.getElementById('email').value = staff.email || '';
+            document.getElementById('phone').value = staff.phone || '';
+            document.getElementById('role').value = staff.role ? staff.role._id : '';
+
+            const selectedSocietyIds = staff.society ? staff.society.map(s => s._id) : [];
+            const societyCheckboxes = document.querySelectorAll('#societyCheckboxContainer input[type="checkbox"]');
+            societyCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectedSocietyIds.includes(checkbox.value);
+            });
+
+            staffModal.style.display = 'block';
+        };
+
+        function closeModal() {
+            staffModal.style.display = 'none';
+        }
+
+        // =================================================================
+        //                   FORM SUBMISSION
+        // =================================================================
+        staffForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'society') {
+                    if (key === 'email' && !value) continue;
+                    data[key] = value;
+                }
+            }
+            data.society = formData.getAll('society');
+
+            const id = data.id;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/staff/${id}` : '/api/staff';
+
+            // Set default password only for new staff members
+            if (!id) {
+                data.password = 'WashX@2025';
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (response.status === 401) return window.location.href = '/';
+                if (!response.ok) throw new Error((await response.json()).message);
+
+                closeModal();
+                fetchStaff();
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        // =================================================================
+        //                   EVENT LISTENERS & INITIALIZATION
+        // =================================================================
+        document.getElementById('openAddModalBtn').addEventListener('click', () => {
+            openModalForAdd();
+            validateForm(); // Set initial button state
+        });
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        window.addEventListener('click', (e) => e.target === staffModal && closeModal());
+
+        // Add event listeners to all required fields for real-time validation
+        staffForm.addEventListener('input', validateForm);
+        staffForm.addEventListener('change', validateForm);
+
+        // Phone validation listener
+        phoneInput.addEventListener('input', (e) => {
+            const input = e.target;
+            // Instantly remove any non-digit characters
+            input.value = input.value.replace(/[^\d]/g, ''); 
+            
+            clearTimeout(phoneCheckTimeout); // Debounce the check
+
+            validateForm(); // Run validation immediately for a responsive feel
+
+            phoneCheckTimeout = setTimeout(() => {
+                const phone = input.value;
+                const currentId = staffIdInput.value;
+                
+                // Only proceed if the phone number is 10 digits
+                if (phone.length === 10) {
+                    const existingStaff = currentStaffList.find(staff => {
+                        const isSamePhone = staff.phone === phone;
+                        const isDifferentStaff = staff._id !== currentId;
+                        return isSamePhone && isDifferentStaff;
+                    });
+
+                    if (existingStaff) {
+                        phoneExistsMsg.textContent = `Phone number is already registered.`;
+                        phoneExistsMsg.style.color = '#ef4444'; // Set color to red for error
+                        phoneExistsMsg.style.display = 'block';
+                    } else {
+                        phoneExistsMsg.textContent = 'Hey, Welcome to our team!';
+                        phoneExistsMsg.style.color = 'green';    // Set color to green for welcome
+                        phoneExistsMsg.style.display = 'block'; // Make the welcome message visible
+                    }
+                } else {
+                    // Hide the message if the number is not 10 digits
+                    phoneExistsMsg.style.display = 'none';
+                }
+                // Run validation again after the check is complete
+                validateForm();
+            }, 500); 
+        });
+
+        // OVERRIDE: We need to call validateForm in the existing edit function to set initial button state
+        const originalOpenModalForEdit = window.openModalForEdit;
+        window.openModalForEdit = (id) => {
+            originalOpenModalForEdit(id); // Call the original function
+            validateForm(); // Then validate the pre-filled form
+        };
+
+
+        async function initializePage() {
+            try {
+                await Promise.all([
+                    populateRolesDropdown(),
+                    populateSocietiesDropdown()
+                ]);
+                await fetchStaff();
+            } catch (error) {
+                if (error.message.includes("401")) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/';
+                }
+            }
+        }
+
+        initializePage();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashX - Slot Management</title>
+    <link rel="stylesheet" href="/styles/style.css">
+    <style>
+        .header-actions { display: flex; align-items: center; gap: 16px; }
+        .date-picker-label { font-weight: 500; color: #4b5563; }
+        .date-picker { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; }
+        .slots-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .slot-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; }
+        .slot-list { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .slot-item { display: grid; grid-template-columns: 2fr 1.5fr 1fr auto; gap: 16px; align-items: center; padding: 12px; border-radius: 6px; background-color: #f9fafb; border-left: 5px solid #22c55e; }
+        .slot-item.nearly-full { border-left-color: #f97316; }
+        .slot-item.full { border-left-color: #ef4444; }
+        .slot-item-name { font-weight: 500; }
+        .slot-usage { font-weight: 600; text-align: center; }
+        .capacity-input { width: 70px; padding: 8px 10px; border-radius: 4px; border: 1px solid #d1d5db; text-align: center; }
+        .update-btn { padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; border: none; background-color: #4f46e5; color: white; transition: background-color 0.2s; }
+        .update-btn:hover { background-color: #4338ca; }
+        .update-btn.success { background-color: #22c55e; }
+        .sidebar { display: flex; flex-direction: column; }
+        .sidebar-footer { margin-top: auto; padding: 10px 15px; }
+        .logout-link { display: flex; align-items: center; text-decoration: none; color: #d1d5db; padding: 12px 15px; border-radius: 8px; transition: background-color 0.2s, color 0.2s; font-weight: 500; }
+        .logout-link .nav-icon { margin-right: 12px; }
+        .logout-link:hover { background-color: #be123c; color: #fff; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div>
+            <div class="logo">
+                <div class="logo-icon">WX</div>
+                <div class="logo-text">WashX<br><span style="font-size: 12px; color: #6b7280;">Admin Portal</span></div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/home.html" class="nav-link"><div class="nav-icon">📊</div>Dashboard</a></li>
+                <li class="nav-item"><a href="/orders.html" class="nav-link "><div class="nav-icon">📦</div>Orders</a></li>
+                <li class="nav-item"><a href="/customers.html" class="nav-link"><div class="nav-icon">👥</div>Customers</a></li>
+                <li class="nav-item"><a href="/slots.html" class="nav-link active"><div class="nav-icon">🏢</div>Slots</a></li>
+                <li class="nav-item"><a href="#" class="nav-link"><div class="nav-icon">🔔</div>Notifications</a></li>
+                <li class="nav-item"><a href="/reports.html" class="nav-link"><div class="nav-icon">📈</div>Reports</a></li>
+                <li class="nav-item"><a href="/staff.html" class="nav-link"><div class="nav-icon">👨‍💼</div>Staff</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <a href="/logout" class="logout-link">
+                <div class="nav-icon">🚪</div>Logout
+            </a>
+        </div>
+    </nav>
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1 class="page-title">Slot Status & Management</h1>
+                <p class="page-subtitle">View daily slot usage and manage default maximum capacity.</p>
+            </div>
+            <div class="header-actions">
+                <label for="datePicker" class="date-picker-label">Select Date:</label>
+                <input type="date" id="datePicker" class="date-picker">
+            </div>
+        </header>
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <span style="margin-left: 12px;">Loading slots status...</span>
+        </div>
+        <div class="slots-container" id="slotsContainer" style="display: none;">
+            <div class="slot-card">
+                <h2>Pickup Slots</h2>
+                <div class="slot-list" id="pickupSlotsList"></div>
+            </div>
+            <div class="slot-card">
+                <h2>Delivery Slots</h2>
+                <div class="slot-list" id="deliverySlotsList"></div>
+            </div>
+        </div>
+    </main>
+
+<script>
+    const pickupSlotsList = document.getElementById('pickupSlotsList');
+    const deliverySlotsList = document.getElementById('deliverySlotsList');
+    const loadingState = document.getElementById('loadingState');
+    const slotsContainer = document.getElementById('slotsContainer');
+    const datePicker = document.getElementById('datePicker');
+
+    const getStatusClass = (booked, max) => {
+        if (booked >= max) return 'full';
+        if (booked / max >= 0.75) return 'nearly-full';
+        return 'available';
+    };
+
+    const renderSlots = (slots) => {
+        pickupSlotsList.innerHTML = '';
+        deliverySlotsList.innerHTML = '';
+        slots.forEach(slot => {
+            const statusClass = getStatusClass(slot.bookedCount, slot.maxCapacity);
+            const slotItemHtml = `
+                <div class="slot-item ${statusClass}" data-slot-id="${slot._id}">
+                    <span class="slot-item-name">${slot.slotName}</span>
+                    <span class="slot-usage">${slot.bookedCount} / ${slot.maxCapacity} Booked</span>
+                    <input type="number" class="capacity-input" value="${slot.maxCapacity}" min="1" max="50">
+                    <button class="update-btn">Update</button>
+                </div>
+            `;
+            if (slot.slotType === 'Pickup') { pickupSlotsList.innerHTML += slotItemHtml; } 
+            else { deliverySlotsList.innerHTML += slotItemHtml; }
+        });
+    };
+
+    const fetchAndRenderSlotStatus = async () => {
+        const selectedDate = datePicker.value;
+        if (!selectedDate) return;
+        try {
+            loadingState.style.display = 'flex';
+            slotsContainer.style.display = 'none';
+            const response = await fetch(`/api/slots/status?date=${selectedDate}`);
+            if (response.status === 401) { alert('Your session has expired. Please log in again.'); return window.location.href = '/'; }
+            if (!response.ok) { const error = await response.json(); throw new Error(error.message || 'Failed to fetch slots data.'); }
+            const slotsWithStatus = await response.json();
+            renderSlots(slotsWithStatus);
+        } catch (error) {
+            console.error(error);
+            loadingState.innerHTML = `<h3>Error: ${error.message}</h3>`;
+        } finally {
+            loadingState.style.display = 'none';
+            slotsContainer.style.display = 'grid';
+        }
+    };
+    
+    slotsContainer.addEventListener('click', async (e) => {
+        if (!e.target.classList.contains('update-btn')) return;
+        const button = e.target;
+        const slotItem = button.closest('.slot-item');
+        const slotId = slotItem.dataset.slotId;
+        const input = slotItem.querySelector('.capacity-input');
+        const newCapacity = parseInt(input.value, 10);
+
+        if (isNaN(newCapacity) || newCapacity < 1 || newCapacity > 50) {
+            alert('Please enter a valid capacity between 1 and 50.');
+            return;
+        }
+        
+        button.textContent = '...'; button.disabled = true;
+        try {
+            const response = await fetch(`/api/slots/${slotId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ maxCapacity: newCapacity })
+            });
+            if (response.status === 401) { alert('Your session has expired. Please log in again.'); return window.location.href = '/'; }
+            if (!response.ok) { const error = await response.json(); throw new Error(error.message || 'Failed to update slot.'); }
+            
+            button.textContent = '✓ Saved'; button.classList.add('success');
+            setTimeout(() => {
+                button.textContent = 'Update';
+                button.classList.remove('success');
+                fetchAndRenderSlotStatus();
+            }, 2000);
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+            button.textContent = 'Update';
+        } finally {
+             button.disabled = false;
+        }
+    });
+
+    datePicker.addEventListener('change', fetchAndRenderSlotStatus);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        datePicker.value = `${yyyy}-${mm}-${dd}`;
+        fetchAndRenderSlotStatus();
+    });
+</script>
+</body>
+</html>
