@@ -823,13 +823,13 @@
             }
             const serviceableSocietiesNames = pincodeToSocietiesMap[pincode];
             if (serviceableSocietiesNames) {
-                pincodeMessage.textContent = '✅ Hey, we are serviceable to your pincode.';
+                pincodeMessage.textContent = '   Serviceable';
                 pincodeMessage.style.color = '#16a34a';
                 pincodeMessage.style.display = 'block';
                 const lowerCaseServiceableNames = serviceableSocietiesNames.map(name => name.toLowerCase());
                 renderSocieties(allSocieties.filter(society => lowerCaseServiceableNames.includes(society.name.toLowerCase())));
             } else {
-                pincodeMessage.textContent = 'Sorry, we do not service this area yet.';
+                pincodeMessage.textContent =  '   Non Serviceable';
                 pincodeMessage.style.color = '#ef4444';
                 pincodeMessage.style.display = 'block';
                 renderSocieties([]);
@@ -955,7 +955,7 @@
                 
                 listContainer.innerHTML = orders.map(o => { 
                     const itemSummary = o.items.map(i => `${i.serviceCategoryID.categoryName} ` + (i.weightInKg ? `(${i.weightInKg}kg)` : i.pairCount ? `(${i.pairCount}p)` : `(${i.subItems.reduce((a, s) => a + s.quantity, 0)}i)`)).join('; '); 
-                    return `<div class="order-item-row" style="grid-template-columns: 1fr 1.5fr 1.2fr 3fr 1.2fr 1fr;"><div><strong>#${o._id.slice(-6).toUpperCase()}</strong></div><div>${new Date(o.orderedOn).toLocaleDateString('en-IN')}</div><div><span class="service-type-tag service-type-tag-${o.items[0].serviceType.toLowerCase()}" style="margin-left:0;">${o.items[0].serviceType}</span></div><div class="item-details">${itemSummary}</div><div><span class="status-badge status-${o.orderStatus.toLowerCase().replace(/ /g, '-')}">${o.orderStatus}</span></div><div><strong>₹${o.billAmount.toFixed(2)}</strong></div></div>`; 
+                    return `<div class="order-item-row" style="grid-template-columns: 1fr 1.5fr 1.2fr 3fr 1.2fr 1fr;"><div><strong>${o.orderId}</strong></div><div>${new Date(o.orderedOn).toLocaleDateString('en-IN')}</div><div><span class="service-type-tag service-type-tag-${o.items[0].serviceType.toLowerCase()}" style="margin-left:0;">${o.items[0].serviceType}</span></div><div class="item-details">${itemSummary}</div><div><span class="status-badge status-${o.orderStatus.toLowerCase().replace(/ /g, '-')}">${o.orderStatus}</span></div><div><strong>₹${o.billAmount.toFixed(2)}</strong></div></div>`; 
                 }).join('');
 
             } catch (e) { 
@@ -1014,7 +1014,7 @@
                 const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
                 if (!res.ok) throw new Error((await res.json()).message);
                 const newOrders = await res.json();
-                alert(`Success! Order(s) ${newOrders.map(o => `#${o._id.slice(-6).toUpperCase()}`).join(', ')} created.`);
+                alert(`Success! Order(s) ${newOrders.map(o => o.orderId).join(', ')} created.`);
                 closeOrderModal();
                 resetAndFetchCustomers();
             } catch (error) { alert(`Error: ${error.message}`); } finally { btn.disabled = false; btn.textContent = 'Create Order'; }

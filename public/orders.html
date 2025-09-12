@@ -26,9 +26,18 @@
 
         .order-list .list-header,
         .order-list .list-row {
-            /* MODIFIED: Added one more column for Assigned Status */
-            grid-template-columns: 1.7fr 2fr 2.5fr 1fr 2.2fr 1.5fr 1.5fr 1.5fr 1.4fr;
+            /* MODIFIED: Adjusted column widths for better service column display */
+            grid-template-columns: 1.7fr 2fr 2fr 2.3fr 1fr 2.2fr 1.5fr 1.5fr 1.5fr 1.4fr;
             gap: 16px;
+        }
+
+        /* ADDED: Styles to vertically center the service column text */
+        .service-cell-content {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            font-size: 0.8rem;
+            color: #4b5563;
         }
 
         .status-badge {
@@ -216,7 +225,6 @@
             font-size: 0.7rem;
             font-weight: 600;
             border-radius: 10px;
-            margin-left: 8px;
             vertical-align: middle;
             text-transform: capitalize;
         }
@@ -529,7 +537,7 @@
             <div class="search-input-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="searchInput"
-                    placeholder="Search by Order ID (e.g., last 6 digits) or Customer Name...">
+                    placeholder="Search by Order ID (e.g., WX-ABC12) or Customer Name...">
             </div>
         </div>
 
@@ -595,13 +603,15 @@
         <div class="customer-list order-list" id="orderListContainer" style="display: none;">
             <div class="list-header">
                 <div>Order Info</div>
+                <div>Service</div>
                 <div>Customer</div>
                 <div>Location</div>
                 <div>Amount</div>
                 <div>Schedule</div>
                 <div>Order Status</div>
                 <div>Payment Status</div>
-                <div>Assigned Status</div> <div>Actions</div>
+                <div>Assigned Status</div>
+                <div>Actions</div>
             </div>
             <div id="orderList"></div>
             <div id="scrollLoader" class="loading" style="display: none; padding: 20px;">
@@ -810,7 +820,7 @@
     const reschedulePickupDateInput = document.getElementById('reschedulePickupDate');
 
     // =================================================================
-    //                       HELPER FUNCTIONS & RENDERERS
+    //                           HELPER FUNCTIONS & RENDERERS
     // =================================================================
     const getStatusBadge = (status) => {
         const colors = {
@@ -880,14 +890,16 @@
             const pickupSlot = order.pickupSlot || {};
             const orderDate = new Date(order.orderedOn).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
             
-            let serviceTier = 'standard';
-            if (order.items?.some(item => item.serviceType === 'Superfast')) {
-                serviceTier = 'superfast';
-            } else if (order.items?.some(item => item.serviceType === 'Express')) {
-                serviceTier = 'express';
-            }
-            
-            const serviceTypeTag = `<span class="service-type-tag service-type-tag-${serviceTier}">${serviceTier}</span>`;
+            // MODIFIED: Generate comma-separated list of service names
+            const serviceCategoryNames = [...new Set(
+                (order.items || []).map(item => {
+                    const service = availableServices.find(s => s._id === (item.serviceCategoryID._id || item.serviceCategoryID));
+                    return service ? service.categoryName : null;
+                }).filter(Boolean)
+            )];
+            const servicesText = serviceCategoryNames.join(', ') || '-';
+            const serviceCellContent = `<div class="service-cell-content" title="${servicesText}">${servicesText}</div>`;
+
             const sourceTag = order.orderSource ? `<span class="source-tag">${order.orderSource}</span>` : '';
             const fullLocation = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode].filter(Boolean).join(', ');
             const formattedPickupDate = order.pickupDate ? new Date(order.pickupDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'N/A';
@@ -902,14 +914,15 @@
 
             return `
             <div class="list-row" 
-                 data-order-id="${order._id}" 
-                 data-status="${order.orderStatus}" 
-                 data-pickup-date="${pickupDateISO}"
-                 data-delivery-date="${deliveryDateISO}">
+                data-order-id="${order.orderId}" 
+                data-status="${order.orderStatus}" 
+                data-pickup-date="${pickupDateISO}"
+                data-delivery-date="${deliveryDateISO}">
                 <div>
-                    <div><strong>#${order._id.slice(-6).toUpperCase()} ${serviceTypeTag}</strong></div>
+                    <div><strong>${order.orderId}</strong></div>
                     <small>${orderDate}</small>
                 </div>
+                ${serviceCellContent}
                 <div>
                     <div><strong>${customer.customerName || 'N/A'}</strong>${sourceTag}</div>
                     <small>${customer.phone || 'N/A'}</small>
@@ -924,8 +937,8 @@
                 <div>${getPaymentBadge(order.paymentStatus)}</div>
                 <div>${getAssignedStatusBadge(order)}</div>
                 <div class="actions-cell">
-                    <a href="#" onclick="openModal('${order._id}')" class="action-link" title="Edit Order">✏️ Edit</a>
-                    ${canReschedule ? `<a href="#" onclick="openRescheduleModal('${order._id}')" class="action-link" title="Re-schedule">🔄 Re-schedule</a>` : ''}
+                    <a href="#" onclick="openModal('${order.orderId}')" class="action-link" title="Edit Order">✏️ Edit</a>
+                    ${canReschedule ? `<a href="#" onclick="openRescheduleModal('${order.orderId}')" class="action-link" title="Re-schedule">🔄 Re-schedule</a>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -933,7 +946,7 @@
     };
 
     // =================================================================
-    //                     NEW: LIVE STATUS UPDATE FUNCTION
+    //                       NEW: LIVE STATUS UPDATE FUNCTION
     // =================================================================
     const updateLiveStatuses = () => {
         const today = new Date();
@@ -968,7 +981,7 @@
     };
     
     // =================================================================
-    //                         DATA FETCHING LOGIC
+    //                            DATA FETCHING LOGIC
     // =================================================================
     async function fetchOrders(isInitialLoad = false) {
         if (isLoading) return;
@@ -1010,7 +1023,7 @@
     function resetAndFetchOrders() { currentPage = 1; hasMoreOrders = true; mainContent.scrollTop = 0; fetchOrders(true); }
 
     // =================================================================
-    //                             MODAL HANDLING
+    //                                 MODAL HANDLING
     // =================================================================
     const populateModalDropdowns = () => {
         const pickupSlotSelect = document.getElementById('pickupSlot');
@@ -1059,8 +1072,8 @@
 
             currentModalItems = JSON.parse(JSON.stringify(order.items));
             document.getElementById('modalExpectedDelivery').textContent = order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
-            document.getElementById('order-id-input').value = order._id;
-            document.getElementById('modalOrderId').textContent = `#${order._id.slice(-6).toUpperCase()}`;
+            document.getElementById('order-id-input').value = order.orderId;
+            document.getElementById('modalOrderId').textContent = order.orderId;
             document.getElementById('modalCustomerName').textContent = order.customerID.customerName;
             document.getElementById('modalCustomerPhone').textContent = order.customerID.phone;
             document.getElementById('modalCustomerLocation').textContent = [order.deliveryAddress, order.deliverySociety, order.deliveryPincode].filter(Boolean).join(', ') || 'Walk-in';
@@ -1119,12 +1132,11 @@
         }
 
         renderModalItems();
-        // MODIFICATION #1: Pass the current 'order' object to the UI setup function.
         setupItemEditingUI(order);
     };
 
     // =====================================================================
-    //                  ITEM EDITING AND RENDERING LOGIC
+    //                       ITEM EDITING AND RENDERING LOGIC
     // =====================================================================
     const renderModalItems = () => {
         const itemsContainer = document.getElementById('modalItemsContainer');
@@ -1239,9 +1251,8 @@
     const updateModalTotal = () => { const total = (currentModalItems || []).reduce((acc, item) => acc + item.itemTotal, 0); document.getElementById('modalTotal').textContent = `Total: ₹${total.toFixed(2)}`; };
 
     // =====================================================================
-    //                      EXISTING ITEM ADDITION LOGIC
+    //                       EXISTING ITEM ADDITION LOGIC
     // =====================================================================
-    // MODIFICATION #2: Change the function signature to accept 'order' and use it instead of the global 'currentOpenOrder'.
     const setupItemEditingUI = (order) => {
         const container = document.getElementById('itemEditingSection');
         if (!order || order.orderStatus !== 'In-Progress') {
@@ -1307,7 +1318,7 @@
     }
 
     // =================================================================
-    //                       RESCHEDULE MODAL LOGIC
+    //                           RESCHEDULE MODAL LOGIC
     // =================================================================
     const closeRescheduleModal = () => {
         rescheduleModal.style.display = 'none';
@@ -1346,7 +1357,7 @@
             rescheduleForm.reset();
             reschedulePickupSlotContainer.innerHTML = `<p style="grid-column: 1 / -1; color: #6b7280; font-size: 0.9rem;">Select a date to see available slots.</p>`;
             reschedulePickupSlotInput.value = '';
-            document.getElementById('reschedule-order-id-input').value = order._id;
+            document.getElementById('reschedule-order-id-input').value = order.orderId;
             
             const pickupSection = document.getElementById('reschedulePickupSection');
             const deliverySection = document.getElementById('rescheduleDeliverySection');
@@ -1379,7 +1390,7 @@
 
 
     // =================================================================
-    //                             EVENT LISTENERS
+    //                               EVENT LISTENERS
     // =================================================================
     quickFiltersContainer.addEventListener('click', (e) => {
         if (!e.target.matches('.quick-filter-btn')) return;

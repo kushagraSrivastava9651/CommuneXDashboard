@@ -1,5 +1,5 @@
 // =================================================================
-//                 IMPORTS AND SETUP
+//              IMPORTS AND SETUP
 // =================================================================
 
 const express = require('express');
@@ -11,13 +11,13 @@ const cookieParser = require('cookie-parser');
 const PDFDocument = require('pdfkit');
 require('dotenv').config();
 const cors = require('cors'); // <-- IMPORT CORS
-
+const crypto = require('crypto'); // <-- ADDED FOR ORDER ID
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // =================================================================
-//                         MIDDLEWARE
+//              MIDDLEWARE
 // =================================================================
 
 
@@ -56,7 +56,7 @@ const isAuthenticated = (req, res, next) => {
 
 
 // =================================================================
-//                 DATABASE CONNECTION
+//              DATABASE CONNECTION
 // =================================================================
 
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db')
@@ -70,7 +70,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db')
     .catch(error => console.error('❌ Error connecting to MongoDB:', error));
 
 // =================================================================
-//                       MONGOOSE SCHEMAS
+//              MONGOOSE SCHEMAS
 // =================================================================
 
 const roleSchema = new mongoose.Schema({
@@ -150,6 +150,7 @@ const slotSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
+    orderId: { type: String, required: true, unique: true, index: true }, // <-- ADDED CUSTOM ORDER ID
     customerID: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
     deliveryAddress: { type: String, required: true },
     deliverySociety: { type: String, required: true },
@@ -197,7 +198,7 @@ const Order = mongoose.model('Order', orderSchema);
 const Slot = mongoose.model('Slot', slotSchema);
 
 // =================================================================
-//                   DATA SEEDING FUNCTIONS
+//              DATA SEEDING FUNCTIONS
 // =================================================================
 
 async function seedRoles() {
@@ -295,7 +296,7 @@ async function seedSlots() {
 
 
 // =================================================================
-//               ADMIN & AUTHENTICATION ROUTES
+//              ADMIN & AUTHENTICATION ROUTES
 // =================================================================
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
@@ -334,14 +335,27 @@ app.get('/logout', (req, res) => {
 
 
 // =================================================================
-//               PROTECTED API ROUTES MIDDLEWARE
+//              PROTECTED API ROUTES MIDDLEWARE
 // =================================================================
 
 app.use('/api', isAuthenticated);
 
 // =================================================================
-//                       HELPER FUNCTION
+//              HELPER FUNCTION
 // =================================================================
+
+// ADDED THIS HELPER FUNCTION FOR CUSTOM ORDER ID
+async function generateOrderId() {
+    while (true) {
+        const code = crypto.randomBytes(3).toString('hex').slice(0, 5).toUpperCase();
+        const orderId = `WX-${code}`;
+        const existingOrder = await Order.findOne({ orderId });
+        if (!existingOrder) {
+            return orderId;
+        }
+    }
+}
+
 const calculateExpectedDelivery = async (items, startDate) => {
     if (!startDate) return null;
     let maxTatHours = 0;
@@ -375,7 +389,7 @@ const calculateExpectedDelivery = async (items, startDate) => {
 };
 
 // =================================================================
-//             DATA MANAGEMENT ROUTES (for dropdowns, etc.)
+//              DATA MANAGEMENT ROUTES (for dropdowns, etc.)
 // =================================================================
 
 app.get('/api/roles', async (req, res) => { try { res.json(await Role.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
@@ -435,7 +449,7 @@ app.put('/api/slots/:id', async (req, res) => {
 });
 
 // =================================================================
-//                   STAFF MANAGEMENT ROUTES
+//              STAFF MANAGEMENT ROUTES
 // =================================================================
 
 app.get('/api/staff', async (req, res) => {
@@ -513,7 +527,7 @@ app.get('/api/staff/agents', async (req, res) => {
 
 
 // =================================================================
-//                   CUSTOMER MANAGEMENT ROUTES
+//              CUSTOMER MANAGEMENT ROUTES
 // =================================================================
 
 // ========== UPDATED AND REFACTORED CUSTOMER ROUTE ==========
@@ -678,7 +692,7 @@ app.delete('/api/customers/:id', async (req, res) => {
 
 
 // =================================================================
-//                   SERVICE & ORDER ROUTES
+//              SERVICE & ORDER ROUTES
 // =================================================================
 
 app.get('/api/services', async (req, res) => {
@@ -746,17 +760,16 @@ app.get('/api/orders', async (req, res) => {
         const searchQuery = {};
         if (req.query.search) {
             const searchRegex = { $regex: req.query.search, $options: 'i' };
+            // MODIFIED FOR NEW ORDER ID
             searchQuery.$or = [
                 { 'customer.customerName': searchRegex },
-                { 'orderIdString': { $regex: `^${req.query.search}`, $options: 'i' } }
+                { 'orderId': searchRegex } 
             ];
         }
 
         const aggregationPipeline = [
             { $match: matchQuery },
             { $sort: { orderedOn: -1 } },
-            // Add a string version of the _id for easier searching
-            { $addFields: { orderIdString: { $toString: '$_id' } } },
             // Lookup customer details
             {
                 $lookup: {
@@ -809,7 +822,8 @@ app.get('/api/orders', async (req, res) => {
 
 app.get('/api/orders/:id', async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id)
+        // MODIFIED TO FIND BY CUSTOM ORDER ID
+        const order = await Order.findOne({ orderId: req.params.id })
             .populate({ path: 'customerID', select: 'customerName phone' })
             .populate('items.serviceCategoryID')
             .populate('pickupSlot deliverySlot')
@@ -895,6 +909,9 @@ app.post('/api/orders', async (req, res) => {
                 deliverySociety: currentAddress.society.name,
                 deliveryPincode: currentAddress.pincode,
             };
+            
+            // MODIFIED TO ADD CUSTOM ID
+            newOrderData.orderId = await generateOrderId();
 
             let calculationStartDate;
             if (isPickupScheduled) {
@@ -927,9 +944,10 @@ app.post('/api/orders', async (req, res) => {
 
 app.put('/api/orders/:id', async (req, res) => {
     try {
-        const orderId = req.params.id;
+        const orderId = req.params.id; // This is now the custom WX-XXXXX ID
         const updateData = { ...req.body };
-        const originalOrder = await Order.findById(orderId);
+        // MODIFIED TO FIND BY CUSTOM ORDER ID
+        const originalOrder = await Order.findOne({ orderId });
         if (!originalOrder) return res.status(404).json({ message: "Order not found." });
 
         // Robustly handle agent assignment and un-assignment to ensure agent name is also updated.
@@ -1011,7 +1029,8 @@ app.put('/api/orders/:id', async (req, res) => {
         delete updateData.deliveryAddress;
         delete updateData.deliverySociety;
 
-        const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true });
+        // MODIFIED TO FIND AND UPDATE BY CUSTOM ORDER ID
+        const updatedOrder = await Order.findOneAndUpdate({ orderId }, updateData, { new: true, runValidators: true });
         const populatedOrder = await Order.findById(updatedOrder._id).populate({ path: 'customerID', select: 'customerName phone' }).populate('items.serviceCategoryID', 'categoryName pricingModel').populate('pickupSlot deliverySlot', 'slotName');
         res.json(populatedOrder);
     } catch (error) {
@@ -1021,7 +1040,7 @@ app.put('/api/orders/:id', async (req, res) => {
 });
 
 // =================================================================
-//               DASHBOARD & REPORTS API ROUTES
+//              DASHBOARD & REPORTS API ROUTES
 // =================================================================
 app.get('/api/dashboard/stats', async (req, res) => {
     try {
@@ -1068,7 +1087,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 });
 
 // =================================================================
-//            PDF GENERATION CLASS
+//              PDF GENERATION CLASS
 // =================================================================
 
 class ManifestGenerator {
@@ -1156,7 +1175,8 @@ class ManifestGenerator {
                 this.doc.font('Helvetica').fontSize(8);
             }
             
-            const orderIdText = `#${order._id.toString().slice(-6).toUpperCase()}\n(${order.orderSource || 'Call'})`;
+            // MODIFIED TO USE NEW ORDER ID
+            const orderIdText = `${order.orderId}\n(${order.orderSource || 'Call'})`;
             const customerText = order.customerID?.customerName || 'DELETED CUSTOMER';
             const addressText = `${order.deliveryAddress}, ${order.deliverySociety}, ${order.deliveryPincode || ''}`;
             const contactText = order.customerID?.phone || 'N/A';
@@ -1224,7 +1244,7 @@ class ManifestGenerator {
 }
 
 // =================================================================
-//                 PDF MANIFEST GENERATION ROUTES
+//              PDF MANIFEST GENERATION ROUTES
 // =================================================================
 
 const handleManifestRequest = async (req, res, type) => {
@@ -1284,7 +1304,7 @@ app.get('/api/reports/deliveries', (req, res) => {
 
 
 // =================================================================
-//                         START THE SERVER
+//              START THE SERVER
 // =================================================================
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
