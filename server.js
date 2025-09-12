@@ -63,7 +63,8 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/washx_db')
     .then(async () => {
         console.log('✅ Successfully connected to MongoDB!');
         await seedRoles();
-        await seedSocieties();
+        await seedSocieties(); // <-- MODIFIED DATA WILL BE SEEDED
+        await seedStores();
         await seedServices();
         await seedSlots();
     })
@@ -77,9 +78,20 @@ const roleSchema = new mongoose.Schema({
     role_name: { type: String, required: true, unique: true }
 });
 
+// === MODIFIED SCHEMA ===
 const societySchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    additionalAddress: { type: String },
+    pincode: { type: String, required: true, index: true }
+});
+// Ensure a society name is unique within a given pincode
+societySchema.index({ name: 1, pincode: 1 }, { unique: true });
+
+
+const storeSchema = new mongoose.Schema({
     name: { type: String, required: true, unique: true }
 });
+
 
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
@@ -103,9 +115,10 @@ const staffSchema = new mongoose.Schema({
     email: { type: String },
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    society: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Society' }],
+    store: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }],
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true }
 }, { timestamps: true });
+
 
 staffSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
@@ -150,7 +163,7 @@ const slotSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
-    orderId: { type: String, required: true, unique: true, index: true }, // <-- ADDED CUSTOM ORDER ID
+    orderId: { type: String, required: true, unique: true, index: true },
     customerID: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
     deliveryAddress: { type: String, required: true },
     deliverySociety: { type: String, required: true },
@@ -192,6 +205,7 @@ const User = mongoose.model('User', userSchema);
 const Staff = mongoose.model('Staff', staffSchema);
 const Role = mongoose.model('Role', roleSchema);
 const Society = mongoose.model('Society', societySchema);
+const Store = mongoose.model('Store', storeSchema);
 const Customer = mongoose.model('Customer', customerSchema);
 const Service = mongoose.model('Service', serviceSchema);
 const Order = mongoose.model('Order', orderSchema);
@@ -203,7 +217,7 @@ const Slot = mongoose.model('Slot', slotSchema);
 
 async function seedRoles() {
     try {
-        const roles = ["Ironmen", "Delivery Agent", "Supervisor", "Washermen"];
+        const roles = ["Deliveryman", "Supervisor", "Laundaryman"];
         for (let roleName of roles) {
             if (!(await Role.findOne({ role_name: roleName }))) {
                 await Role.create({ role_name: roleName });
@@ -213,17 +227,54 @@ async function seedRoles() {
     } catch (error) { console.error("❌ Error seeding roles:", error); }
 }
 
+// === MODIFIED SEEDING FUNCTION ===
 async function seedSocieties() {
     try {
-        const societies = ["Riddhis Saphire", "ASBL Spire", "Asbl landmark", "Asbl Gooff"];
-        for (let societyName of societies) {
-            if (!(await Society.findOne({ name: societyName }))) {
-                await Society.create({ name: societyName });
-                console.log(`✅ Society '${societyName}' added.`);
+        const societies = [
+            { name: 'Riddhi Sapphire', additionalAddress: '', pincode: '500089' },
+            { name: 'Others', additionalAddress: '', pincode: '500089' },
+            { name: 'Muppa Akshaja Insignia', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Muppa’s Aaradhya', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Muppa Alankrita', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Muppa Aishwarya County', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Lansum Eldorado', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Vasavi Atlantis', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Lanco Hills', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Muppa Akshaja Crown', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Muppa Aishwarya', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Ashoka Liviano', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Ansari Arcade', additionalAddress: 'Narsingi, Hyderabad, Telangana', pincode: '500089' },
+            { name: 'Niharika Lakefront', additionalAddress: 'Rd Number 9, Chitrapuri Colony, Khajaguda, Hyderabad, Telangana', pincode: '500104' },
+            { name: 'Aparna Elixir', additionalAddress: 'Khajaguda, Hyderabad, Telangana', pincode: '500104' },
+            { name: 'Others', additionalAddress: '', pincode: '500104' }
+        ];
+
+        for (const societyData of societies) {
+            const existing = await Society.findOne({ name: societyData.name, pincode: societyData.pincode });
+            if (!existing) {
+                await Society.create(societyData);
+                console.log(`✅ Society '${societyData.name}' in pincode ${societyData.pincode} added.`);
             }
         }
-    } catch (error) { console.error("❌ Error seeding societies:", error); }
+    } catch (error) {
+        if (error.code !== 11000) {
+            console.error("❌ Error seeding societies:", error);
+        }
+    }
 }
+
+async function seedStores() {
+    try {
+        const stores = ["store-1"];
+        for (let storeName of stores) {
+            if (!(await Store.findOne({ name: storeName }))) {
+                await Store.create({ name: storeName });
+                console.log(`✅ Store '${storeName}' added.`);
+            }
+        }
+    } catch (error) { console.error("❌ Error seeding stores:", error); }
+}
+
 
 async function seedServices() {
     try {
@@ -259,7 +310,6 @@ async function seedServices() {
                 await Service.create(service);
                 console.log(`✅ Service '${service.categoryName}' seeded.`);
             } else {
-                // Optionally, update existing services if seeding logic changes
                 await Service.updateOne({ _id: existingService._id }, service);
             }
         }
@@ -272,28 +322,32 @@ async function seedServices() {
 async function seedSlots() {
     try {
         const count = await Slot.countDocuments();
+
         if (count > 0) {
             await Slot.deleteMany({ slotType: 'Delivery' });
             const allDayDeliverySlot = { slotName: '9 AM - 10 PM', slotType: 'Delivery', maxCapacity: 20 };
+
             if (!(await Slot.findOne(allDayDeliverySlot))) {
                 await Slot.create(allDayDeliverySlot);
                 console.log('✅ All-day delivery slot configured.');
             }
             return;
-        };
+        }
         const slots = [
-            { slotName: '9 AM - 12 PM', slotType: 'Pickup', maxCapacity: 5 },
-            { slotName: '12 PM - 3 PM', slotType: 'Pickup', maxCapacity: 5 },
-            { slotName: '4 PM - 7 PM', slotType: 'Pickup', maxCapacity: 5 },
+            { slotName: '10 AM - 12 PM', slotType: 'Pickup', maxCapacity: 5 },
+            { slotName: '12 PM - 1 PM', slotType: 'Pickup', maxCapacity: 5 },
+            { slotName: '2 PM - 4 PM', slotType: 'Pickup', maxCapacity: 5 },
+            { slotName: '4 PM - 6 PM', slotType: 'Pickup', maxCapacity: 5 },
+            { slotName: '6 PM - 7 PM', slotType: 'Pickup', maxCapacity: 5 },
             { slotName: '9 AM - 10 PM', slotType: 'Delivery', maxCapacity: 20 },
         ];
+
         await Slot.insertMany(slots);
         console.log('✅ Default slots seeded.');
     } catch (error) {
         console.error("❌ Error seeding slots:", error);
     }
 }
-
 
 // =================================================================
 //              ADMIN & AUTHENTICATION ROUTES
@@ -344,7 +398,6 @@ app.use('/api', isAuthenticated);
 //              HELPER FUNCTION
 // =================================================================
 
-// ADDED THIS HELPER FUNCTION FOR CUSTOM ORDER ID
 async function generateOrderId() {
     while (true) {
         const code = crypto.randomBytes(3).toString('hex').slice(0, 5).toUpperCase();
@@ -364,7 +417,7 @@ const calculateExpectedDelivery = async (items, startDate) => {
         const service = await Service.findById(serviceId);
         if (service) {
             let tatString;
-            switch(item.serviceType) {
+            switch (item.serviceType) {
                 case 'Express':
                     tatString = service.expressTAT;
                     break;
@@ -394,7 +447,23 @@ const calculateExpectedDelivery = async (items, startDate) => {
 
 app.get('/api/roles', async (req, res) => { try { res.json(await Role.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
 app.get('/api/societies', async (req, res) => { try { res.json(await Society.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
+app.get('/api/stores', async (req, res) => { try { res.json(await Store.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
 app.get('/api/slots', async (req, res) => { try { res.json(await Slot.find({})); } catch (e) { res.status(500).json({ message: 'Server error' }); } });
+
+// === NEW ROUTE for Pincode Serviceability ===
+app.get('/api/societies/by-pincode/:pincode', async (req, res) => {
+    try {
+        const { pincode } = req.params;
+        if (!/^\d{6}$/.test(pincode)) {
+            return res.status(400).json({ message: 'Invalid pincode format.' });
+        }
+        const societies = await Society.find({ pincode: pincode }).sort({ name: 1 });
+        res.json(societies);
+    } catch (e) {
+        console.error("Error fetching societies by pincode:", e);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 app.get('/api/slots/status', async (req, res) => {
     const { date } = req.query;
@@ -404,9 +473,9 @@ app.get('/api/slots/status', async (req, res) => {
         const startDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
         const endDate = new Date(startDate);
         endDate.setUTCDate(startDate.getUTCDate() + 1);
-        
+
         const slots = await Slot.find({}).lean();
-        
+
         const statusPromises = slots.map(async (slot) => {
             let countQuery;
             if (slot.slotType === 'Pickup') {
@@ -454,7 +523,7 @@ app.put('/api/slots/:id', async (req, res) => {
 
 app.get('/api/staff', async (req, res) => {
     try {
-        res.json(await Staff.find({}).populate('role').populate('society'));
+        res.json(await Staff.find({}).populate('role').populate('store'));
     } catch (error) {
         res.status(500).json({ message: 'Server error fetching staff.' });
     }
@@ -467,11 +536,11 @@ app.post('/api/staff', async (req, res) => {
         }
         const newStaff = new Staff(req.body);
         await newStaff.save();
-        const populatedStaff = await Staff.findById(newStaff._id).populate('role').populate('society');
+        const populatedStaff = await Staff.findById(newStaff._id).populate('role').populate('store');
         res.status(201).json(populatedStaff);
     } catch (error) {
         if (error.code === 11000) {
-            const field = Object.keys(error.keyValue)[0]; // Detects the field (e.g., 'phone' or 'email')
+            const field = Object.keys(error.keyValue)[0];
             const message = `This ${field} is already registered. Please use a different one.`;
             return res.status(400).json({ message });
         }
@@ -491,17 +560,18 @@ app.put('/api/staff/:id', async (req, res) => {
         }
         Object.assign(staff, updateData);
         const updatedStaff = await staff.save();
-        const populatedStaff = await Staff.findById(updatedStaff._id).populate('role').populate('society');
+        const populatedStaff = await Staff.findById(updatedStaff._id).populate('role').populate('store');
         res.json(populatedStaff);
     } catch (error) {
         if (error.code === 11000) {
-            const field = Object.keys(error.keyValue)[0]; // Detects the field
+            const field = Object.keys(error.keyValue)[0];
             const message = `This ${field} is already registered. Please use a different one.`;
             return res.status(400).json({ message });
         }
         res.status(500).json({ message: 'Error updating staff.' });
     }
 });
+
 
 app.delete('/api/staff/:id', async (req, res) => {
     try {
@@ -513,11 +583,8 @@ app.delete('/api/staff/:id', async (req, res) => {
     }
 });
 
-// ========== MODIFIED ROUTE ==========
-// /api/staff/agents -> Fetches ALL staff members for dropdowns
 app.get('/api/staff/agents', async (req, res) => {
     try {
-        // This line fetches all staff members regardless of their role
         const agents = await Staff.find({}).populate('role');
         res.json(agents);
     } catch (error) {
@@ -525,12 +592,10 @@ app.get('/api/staff/agents', async (req, res) => {
     }
 });
 
-
 // =================================================================
 //              CUSTOMER MANAGEMENT ROUTES
 // =================================================================
 
-// ========== UPDATED AND REFACTORED CUSTOMER ROUTE ==========
 app.get('/api/customers', async (req, res) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
@@ -540,11 +605,9 @@ app.get('/api/customers', async (req, res) => {
         const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
         const skip = (page - 1) * limit;
 
-        // 1. Build the Match Stage (for searching)
         const matchStage = {};
         if (search) {
             const regex = { $regex: search, $options: 'i' };
-            // Find societies that match the search term to use their IDs
             const matchingSocieties = await Society.find({ name: regex }).select('_id');
             const societyIds = matchingSocieties.map(s => s._id);
 
@@ -556,13 +619,10 @@ app.get('/api/customers', async (req, res) => {
             ];
         }
 
-        // 2. Build the Sort Stage
         const sortStage = { [sortKey]: sortOrder };
-        
-        // 3. Construct the Aggregation Pipeline
+
         const pipeline = [
             { $match: matchStage },
-            // Join with Orders to calculate stats
             {
                 $lookup: {
                     from: 'orders',
@@ -571,7 +631,6 @@ app.get('/api/customers', async (req, res) => {
                     as: 'orders'
                 }
             },
-            // Calculate totalSpent and orderCount
             {
                 $addFields: {
                     orderCount: { $size: '$orders' },
@@ -592,11 +651,8 @@ app.get('/api/customers', async (req, res) => {
                     }
                 }
             },
-            // We don't need the full orders array in the final result
             { $project: { orders: 0 } },
-            // Apply sorting
             { $sort: sortStage },
-            // Apply pagination using $facet to get both data and total count
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],
@@ -606,11 +662,10 @@ app.get('/api/customers', async (req, res) => {
         ];
 
         const results = await Customer.aggregate(pipeline);
-        
+
         const customers = results[0].data;
         const totalCustomers = results[0].metadata.length > 0 ? results[0].metadata[0].total : 0;
 
-        // Manual population for society names in addresses
         await Society.populate(customers, { path: 'addresses.society' });
 
         res.json({
@@ -631,7 +686,7 @@ app.get('/api/customers/:id/orders', async (req, res) => {
     try {
         const customerId = req.params.id;
         const orders = await Order.find({ customerID: customerId })
-            .select('orderedOn billAmount orderStatus items deliveryAddress deliverySociety deliveryPincode')
+            .select('orderId orderedOn billAmount orderStatus items deliveryAddress deliverySociety deliveryPincode')
             .populate({ path: 'items.serviceCategoryID', select: 'categoryName' })
             .sort({ orderedOn: -1 });
         if (!orders) {
@@ -644,10 +699,28 @@ app.get('/api/customers/:id/orders', async (req, res) => {
     }
 });
 
+// === MODIFIED ROUTE for Address Concatenation ===
 app.post('/api/customers', async (req, res) => {
     try {
         const { customerName, phone, address, society, pincode } = req.body;
-        const newCustomerData = { customerName, phone, addresses: [{ address, society, pincode, isCurrent: true }] };
+
+        const societyDoc = await Society.findById(society);
+        if (!societyDoc) {
+            return res.status(400).json({ message: 'Invalid society selected.' });
+        }
+
+        const fullAddress = [address, societyDoc.additionalAddress].filter(Boolean).join(', ');
+
+        const newCustomerData = {
+            customerName,
+            phone,
+            addresses: [{
+                address: fullAddress,
+                society,
+                pincode,
+                isCurrent: true
+            }]
+        };
         const newCustomer = new Customer(newCustomerData);
         await newCustomer.save();
         const populatedCustomer = await Customer.findById(newCustomer._id).populate('addresses.society');
@@ -658,24 +731,38 @@ app.post('/api/customers', async (req, res) => {
     }
 });
 
+// === MODIFIED ROUTE for Address Concatenation ===
 app.put('/api/customers/:id', async (req, res) => {
     try {
         const { customerName, phone, address, society, pincode } = req.body;
         const customer = await Customer.findById(req.params.id);
         if (!customer) return res.status(404).json({ message: 'Customer not found.' });
+
+        const societyDoc = await Society.findById(society);
+        if (!societyDoc) {
+            return res.status(400).json({ message: 'Invalid society selected.' });
+        }
+
+        const fullAddress = [address, societyDoc.additionalAddress].filter(Boolean).join(', ');
+
         customer.customerName = customerName;
         customer.phone = phone;
+
         if (customer.addresses && customer.addresses.length > 0) {
-            customer.addresses[0].address = address;
-            customer.addresses[0].society = society;
-            customer.addresses[0].pincode = pincode;
+            const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
+            currentAddress.address = fullAddress;
+            currentAddress.society = society;
+            currentAddress.pincode = pincode;
         } else {
-            customer.addresses.push({ address, society, pincode, isCurrent: true });
+            customer.addresses.push({ address: fullAddress, society, pincode, isCurrent: true });
         }
         await customer.save();
         const populatedCustomer = await Customer.findById(customer._id).populate('addresses.society');
         res.json(populatedCustomer);
     } catch (error) {
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.phone) {
+            return res.status(400).json({ message: 'A customer with this phone number already exists.' });
+        }
         res.status(500).json({ message: 'Error updating customer.' });
     }
 });
@@ -722,17 +809,14 @@ app.put('/api/services/:id', async (req, res) => {
 });
 
 
-// MODIFIED FOR PAGINATION & ADVANCED FILTERING
 app.get('/api/orders', async (req, res) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 20;
         const skip = (page - 1) * limit;
 
-        // Build the match query from filters
         const matchQuery = {};
 
-        // Detailed Filters
         if (req.query.orderStatus && req.query.orderStatus !== 'all') {
             matchQuery.orderStatus = req.query.orderStatus;
         }
@@ -748,29 +832,36 @@ app.get('/api/orders', async (req, res) => {
             matchQuery.orderedOn = { ...matchQuery.orderedOn, $lte: endOfDay };
         }
 
-        // Quick Filters
         if (req.query.service && req.query.service !== 'all') {
             matchQuery['items.serviceType'] = req.query.service === 'express' ? 'Express' : req.query.service === 'superfast' ? 'Superfast' : 'Standard';
         }
         if (req.query.source && req.query.source !== 'all') {
             matchQuery.orderSource = req.query.source === 'walk-in' ? 'Walk-in' : 'Call';
         }
+        if (req.query.categories) {
+            const categoryNames = req.query.categories.split(',');
+            const services = await Service.find({ categoryName: { $in: categoryNames } }).select('_id');
+            const serviceIds = services.map(s => s._id);
 
-        // Search Filter (handled after lookup)
+            if (serviceIds.length > 0) {
+                matchQuery['items.serviceCategoryID'] = { $in: serviceIds };
+            } else {
+                matchQuery['items.serviceCategoryID'] = { $in: [] };
+            }
+        }
+
+
         const searchQuery = {};
         if (req.query.search) {
             const searchRegex = { $regex: req.query.search, $options: 'i' };
-            // MODIFIED FOR NEW ORDER ID
             searchQuery.$or = [
                 { 'customer.customerName': searchRegex },
-                { 'orderId': searchRegex } 
+                { 'orderId': searchRegex }
             ];
         }
-
         const aggregationPipeline = [
             { $match: matchQuery },
             { $sort: { orderedOn: -1 } },
-            // Lookup customer details
             {
                 $lookup: {
                     from: 'customers',
@@ -780,9 +871,7 @@ app.get('/api/orders', async (req, res) => {
                 }
             },
             { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
-            // Apply search query after lookup
             { $match: searchQuery },
-            // Facet for pagination and total count
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],
@@ -792,15 +881,13 @@ app.get('/api/orders', async (req, res) => {
         ];
 
         const results = await Order.aggregate(aggregationPipeline);
-        
+
         const orders = results[0].data;
         const totalOrders = results[0].metadata.length > 0 ? results[0].metadata[0].total : 0;
-        
-        // Manual population after aggregation
+
         await Customer.populate(orders, { path: 'customerID', select: 'customerName phone' });
         await Slot.populate(orders, { path: 'pickupSlot', select: 'slotName' });
-        
-        // Replace aggregated customer field with original customerID field for consistency
+
         orders.forEach(order => {
             order.customerID = order.customer;
             delete order.customer;
@@ -819,10 +906,8 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
-
 app.get('/api/orders/:id', async (req, res) => {
     try {
-        // MODIFIED TO FIND BY CUSTOM ORDER ID
         const order = await Order.findOne({ orderId: req.params.id })
             .populate({ path: 'customerID', select: 'customerName phone' })
             .populate('items.serviceCategoryID')
@@ -837,7 +922,6 @@ app.get('/api/orders/:id', async (req, res) => {
     }
 });
 
-// MODIFIED: Order creation logic
 app.post('/api/orders', async (req, res) => {
     const { customerID, items, pickupAgent, isPickupScheduled } = req.body;
     try {
@@ -865,7 +949,7 @@ app.post('/api/orders', async (req, res) => {
             for (const item of groupItems) {
                 const service = await Service.findById(item.serviceCategoryID);
                 if (!service) return res.status(400).json({ message: `Invalid service ID: ${item.serviceCategoryID}` });
-                
+
                 let multiplier = 1;
                 if (item.serviceType === 'Express') {
                     multiplier = service.expressPriceMultiplier || 1.5;
@@ -909,8 +993,7 @@ app.post('/api/orders', async (req, res) => {
                 deliverySociety: currentAddress.society.name,
                 deliveryPincode: currentAddress.pincode,
             };
-            
-            // MODIFIED TO ADD CUSTOM ID
+
             newOrderData.orderId = await generateOrderId();
 
             let calculationStartDate;
@@ -944,13 +1027,11 @@ app.post('/api/orders', async (req, res) => {
 
 app.put('/api/orders/:id', async (req, res) => {
     try {
-        const orderId = req.params.id; // This is now the custom WX-XXXXX ID
+        const orderId = req.params.id;
         const updateData = { ...req.body };
-        // MODIFIED TO FIND BY CUSTOM ORDER ID
         const originalOrder = await Order.findOne({ orderId });
         if (!originalOrder) return res.status(404).json({ message: "Order not found." });
 
-        // Robustly handle agent assignment and un-assignment to ensure agent name is also updated.
         if (updateData.hasOwnProperty('pickupAgent')) {
             if (updateData.pickupAgent) {
                 const agent = await Staff.findById(updateData.pickupAgent);
@@ -986,7 +1067,7 @@ app.put('/api/orders/:id', async (req, res) => {
             for (const item of updateData.items) {
                 const service = await Service.findById(item.serviceCategoryID);
                 if (!service) return res.status(400).json({ message: `Invalid service ID: ${item.serviceCategoryID}` });
-                
+
                 let multiplier = 1;
                 if (item.serviceType === 'Express') {
                     multiplier = service.expressPriceMultiplier || 1.5;
@@ -997,7 +1078,7 @@ app.put('/api/orders/:id', async (req, res) => {
                 let currentItemTotal = 0;
                 const processedItem = { serviceCategoryID: service._id, serviceType: item.serviceType };
                 switch (service.pricingModel) {
-                   case 'PerKg':
+                    case 'PerKg':
                         processedItem.weightInKg = item.weightInKg;
                         processedItem.pricePerKg = item.pricePerKg || (service.pricePerKg * multiplier);
                         currentItemTotal = processedItem.weightInKg * processedItem.pricePerKg;
@@ -1029,7 +1110,6 @@ app.put('/api/orders/:id', async (req, res) => {
         delete updateData.deliveryAddress;
         delete updateData.deliverySociety;
 
-        // MODIFIED TO FIND AND UPDATE BY CUSTOM ORDER ID
         const updatedOrder = await Order.findOneAndUpdate({ orderId }, updateData, { new: true, runValidators: true });
         const populatedOrder = await Order.findById(updatedOrder._id).populate({ path: 'customerID', select: 'customerName phone' }).populate('items.serviceCategoryID', 'categoryName pricingModel').populate('pickupSlot deliverySlot', 'slotName');
         res.json(populatedOrder);
@@ -1069,9 +1149,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
         const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
         const pendingRevenueData = await Order.aggregate([{ $match: { ...dateFilter, paymentStatus: 'Pending' } }, { $group: { _id: null, total: { $sum: '$billAmount' } } }]);
         const pendingRevenue = pendingRevenueData.length > 0 ? pendingRevenueData[0].total : 0;
-        
-        // MODIFICATION: Only count customers with non-cancelled orders as active
-        const activeStatuses = ['New', 'Pick-up Pending', 'In-Progress', 'Delivery Pending' ];
+
+        const activeStatuses = ['New', 'Pick-up Pending', 'In-Progress', 'Delivery Pending'];
         const activeCustomers = await Order.distinct('customerID', {
             ...dateFilter,
             orderStatus: { $in: activeStatuses }
@@ -1126,17 +1205,17 @@ class ManifestGenerator {
 
         const dateLabel = this.reportType === 'pickups' ? 'Pickup Date' : 'Delivery Date';
         this.doc.fontSize(10).font('Helvetica')
-           .text(`Total Tasks: ${this.data.length}`, range.left, range.top)
-           .text(`${dateLabel}: ${this.reportDate}`, range.left, range.top, { align: 'right' });
+            .text(`Total Tasks: ${this.data.length}`, range.left, range.top)
+            .text(`${dateLabel}: ${this.reportDate}`, range.left, range.top, { align: 'right' });
     }
-    
+
     _generateFooter(range) {
         const timestamp = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
         this.doc.fontSize(8).fillColor('#555555')
             .text(`Generated on: ${timestamp}`, range.left, range.bottom + 10, { align: 'left' })
             .text(`Page ${this.pageNumber}`, range.left, range.bottom + 10, { align: 'right' });
     }
-    
+
     _getTableHeadersAndWidths() {
         if (this.reportType === 'pickups') {
             return {
@@ -1174,8 +1253,7 @@ class ManifestGenerator {
                 this.doc.y += 20;
                 this.doc.font('Helvetica').fontSize(8);
             }
-            
-            // MODIFIED TO USE NEW ORDER ID
+
             const orderIdText = `${order.orderId}\n(${order.orderSource || 'Call'})`;
             const customerText = order.customerID?.customerName || 'DELETED CUSTOMER';
             const addressText = `${order.deliveryAddress}, ${order.deliverySociety}, ${order.deliveryPincode || ''}`;
@@ -1201,14 +1279,14 @@ class ManifestGenerator {
                 const amountDue = `₹ ${order.paymentStatus === 'Pending' ? order.billAmount.toFixed(2) : '0.00'}`;
                 rowData = [(index + 1).toString(), orderIdText, customerText, addressText, contactText, amountDue, itemsText, agentText, ''];
             }
-            
+
             let maxHeight = 0;
             rowData.forEach((text, i) => {
                 const cellHeight = this.doc.heightOfString(text.toString(), { width: colWidths[i] - 10 });
                 if (cellHeight > maxHeight) maxHeight = cellHeight;
             });
             const rowHeight = Math.max(maxHeight + 10, 25);
-            
+
             this._drawTableRow(startX, this.doc.y, rowData, colWidths, false, index % 2 !== 0, rowHeight);
             this.doc.y += rowHeight;
         });
@@ -1237,7 +1315,7 @@ class ManifestGenerator {
             currentX += colWidths[i];
         });
     }
-    
+
     _finalizeDocument() {
         this.doc.end();
     }
@@ -1262,11 +1340,11 @@ const handleManifestRequest = async (req, res, type) => {
 
         let query = {};
         if (type === 'pickups') {
-            query = { 
+            query = {
                 pickupDate: { $gte: startDate, $lt: endDate }
             };
         } else { // deliveries
-            query = { 
+            query = {
                 deliveryDate: { $gte: startDate, $lt: endDate },
             };
         }

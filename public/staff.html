@@ -145,8 +145,8 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Assigned Stores</label>
-                    <div id="societyCheckboxContainer" class="checkbox-group">
-                        <p style="color: #6b7280; grid-column: 1 / -1;">Loading societies...</p>
+                    <div id="storeCheckboxContainer" class="checkbox-group">
+                        <p style="color: #6b7280; grid-column: 1 / -1;">Loading stores...</p>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -190,34 +190,36 @@
             }
         };
 
-        const populateSocietiesDropdown = async () => {
-            const societyContainer = document.getElementById('societyCheckboxContainer');
+        // === MODIFIED FUNCTION: Fetches stores instead of societies ===
+        const populateStoresDropdown = async () => {
+            const storeContainer = document.getElementById('storeCheckboxContainer');
             try {
-                const response = await fetch('/api/societies');
+                const response = await fetch('/api/stores'); // Fetch from new endpoint
                 if (response.status === 401) return window.location.href = '/';
-                if (!response.ok) throw new Error('Failed to fetch societies');
-                const societies = await response.json();
+                if (!response.ok) throw new Error('Failed to fetch stores');
+                const stores = await response.json();
 
-                societyContainer.innerHTML = '';
-                if (societies.length === 0) {
-                    societyContainer.innerHTML = '<p style="color: #6b7280; grid-column: 1 / -1;">No societies found.</p>';
+                storeContainer.innerHTML = '';
+                if (stores.length === 0) {
+                    storeContainer.innerHTML = '<p style="color: #6b7280; grid-column: 1 / -1;">No stores found.</p>';
                     return;
                 }
 
-                societies.forEach(society => {
-                    const checkboxId = `society-${society._id}`;
-                    societyContainer.innerHTML += `
+                stores.forEach(store => {
+                    const checkboxId = `store-${store._id}`;
+                    storeContainer.innerHTML += `
                         <div class="checkbox-item">
-                            <input type="checkbox" id="${checkboxId}" name="society" value="${society._id}">
-                            <label for="${checkboxId}">${society.name}</label>
+                            <input type="checkbox" id="${checkboxId}" name="store" value="${store._id}">
+                            <label for="${checkboxId}">${store.name}</label>
                         </div>
                     `;
                 });
             } catch (error) {
                 console.error(error);
-                societyContainer.innerHTML = '<p style="color: #ef4444; grid-column: 1 / -1;">Error loading societies.</p>';
+                storeContainer.innerHTML = '<p style="color: #ef4444; grid-column: 1 / -1;">Error loading stores.</p>';
             }
         };
+
 
         // =================================================================
         //                   CARD RENDERING
@@ -240,8 +242,9 @@
             }
             staffGrid.innerHTML = data.map((staff) => {
                 const roleName = staff.role ? staff.role.role_name : 'Unassigned';
-                const societyNames = (staff.society && staff.society.length > 0)
-                    ? staff.society.map(s => s.name).join(', ')
+                // === MODIFIED: Use staff.store instead of staff.society ===
+                const storeNames = (staff.store && staff.store.length > 0)
+                    ? staff.store.map(s => s.name).join(', ')
                     : 'N/A';
 
                 return `
@@ -259,11 +262,12 @@
                     <div class="contact-info">
                         <div class="contact-item"><span class="contact-icon">📞</span> ${staff.phone || 'N/A'}</div>
                         <div class="contact-item"><span class="contact-icon">📧</span> ${staff.email || 'N/A'}</div>
-                        <div class="contact-item"><span class="contact-icon">📍</span> ${societyNames}</div>
+                        <div class="contact-item"><span class="contact-icon">📍</span> ${storeNames}</div>
                     </div>
                 </div>`;
             }).join('');
         }
+
 
         // =================================================================
         //                 FETCH & DELETE OPERATIONS
@@ -291,24 +295,22 @@
         // =================================================================
         //                   FORM VALIDATION
         // =================================================================
-      
+       
         function validateForm() {
             const phone = document.getElementById('phone').value;
             const name = document.getElementById('name').value.trim();
             const role = document.getElementById('role').value;
-            
-            // **MODIFIED**: Check if at least one society checkbox is selected.
-            const isSocietySelected = document.querySelectorAll('#societyCheckboxContainer input[name="society"]:checked').length > 0;
+             
+            // === MODIFIED: Check for selected stores instead of societies ===
+            const isStoreSelected = document.querySelectorAll('#storeCheckboxContainer input[name="store"]:checked').length > 0;
 
-            // Check if other required fields are filled.
             const areFieldsFilled = phone.length === 10 && name !== '' && role !== '';
-
-            // A phone number is considered available if the message is hidden OR if it's the green welcome message.
             const isPhoneAvailable = phoneExistsMsg.style.display === 'none' || phoneExistsMsg.style.color === 'green';
 
-            // **MODIFIED**: Enable the button only if all mandatory conditions are met.
-            submitBtn.disabled = !(areFieldsFilled && isPhoneAvailable && isSocietySelected);
+            // === MODIFIED: Enable button only if a store is selected ===
+            submitBtn.disabled = !(areFieldsFilled && isPhoneAvailable && isStoreSelected);
         }
+
 
         // =================================================================
         //                   MODAL HANDLING
@@ -337,14 +339,16 @@
             document.getElementById('phone').value = staff.phone || '';
             document.getElementById('role').value = staff.role ? staff.role._id : '';
 
-            const selectedSocietyIds = staff.society ? staff.society.map(s => s._id) : [];
-            const societyCheckboxes = document.querySelectorAll('#societyCheckboxContainer input[type="checkbox"]');
-            societyCheckboxes.forEach(checkbox => {
-                checkbox.checked = selectedSocietyIds.includes(checkbox.value);
+            // === MODIFIED: Check assigned stores for the staff member ===
+            const selectedStoreIds = staff.store ? staff.store.map(s => s._id) : [];
+            const storeCheckboxes = document.querySelectorAll('#storeCheckboxContainer input[type="checkbox"]');
+            storeCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectedStoreIds.includes(checkbox.value);
             });
 
             staffModal.style.display = 'block';
         };
+
 
         function closeModal() {
             staffModal.style.display = 'none';
@@ -358,18 +362,19 @@
             const formData = new FormData(e.target);
             const data = {};
             for (let [key, value] of formData.entries()) {
-                if (key !== 'society') {
+                // === MODIFIED: Exclude 'store' key from direct assignment ===
+                if (key !== 'store') {
                     if (key === 'email' && !value) continue;
                     data[key] = value;
                 }
             }
-            data.society = formData.getAll('society');
+            // === MODIFIED: Get all selected store values ===
+            data.store = formData.getAll('store');
 
             const id = data.id;
             const method = id ? 'PUT' : 'POST';
             const url = id ? `/api/staff/${id}` : '/api/staff';
 
-            // Set default password only for new staff members
             if (!id) {
                 data.password = 'WashX@2025';
             }
@@ -395,31 +400,26 @@
         // =================================================================
         document.getElementById('openAddModalBtn').addEventListener('click', () => {
             openModalForAdd();
-            validateForm(); // Set initial button state
+            validateForm();
         });
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
         document.getElementById('cancelBtn').addEventListener('click', closeModal);
         window.addEventListener('click', (e) => e.target === staffModal && closeModal());
 
-        // Add event listeners to all required fields for real-time validation
         staffForm.addEventListener('input', validateForm);
         staffForm.addEventListener('change', validateForm);
 
-        // Phone validation listener
         phoneInput.addEventListener('input', (e) => {
             const input = e.target;
-            // Instantly remove any non-digit characters
             input.value = input.value.replace(/[^\d]/g, ''); 
-            
-            clearTimeout(phoneCheckTimeout); // Debounce the check
-
-            validateForm(); // Run validation immediately for a responsive feel
+             
+            clearTimeout(phoneCheckTimeout);
+            validateForm();
 
             phoneCheckTimeout = setTimeout(() => {
                 const phone = input.value;
                 const currentId = staffIdInput.value;
-                
-                // Only proceed if the phone number is 10 digits
+                 
                 if (phone.length === 10) {
                     const existingStaff = currentStaffList.find(staff => {
                         const isSamePhone = staff.phone === phone;
@@ -429,35 +429,32 @@
 
                     if (existingStaff) {
                         phoneExistsMsg.textContent = `Phone number is already registered.`;
-                        phoneExistsMsg.style.color = '#ef4444'; // Set color to red for error
+                        phoneExistsMsg.style.color = '#ef4444';
                         phoneExistsMsg.style.display = 'block';
                     } else {
                         phoneExistsMsg.textContent = 'Hey, Welcome to our team!';
-                        phoneExistsMsg.style.color = 'green';    // Set color to green for welcome
-                        phoneExistsMsg.style.display = 'block'; // Make the welcome message visible
+                        phoneExistsMsg.style.color = 'green';
+                        phoneExistsMsg.style.display = 'block';
                     }
                 } else {
-                    // Hide the message if the number is not 10 digits
                     phoneExistsMsg.style.display = 'none';
                 }
-                // Run validation again after the check is complete
                 validateForm();
             }, 500); 
         });
 
-        // OVERRIDE: We need to call validateForm in the existing edit function to set initial button state
         const originalOpenModalForEdit = window.openModalForEdit;
         window.openModalForEdit = (id) => {
-            originalOpenModalForEdit(id); // Call the original function
-            validateForm(); // Then validate the pre-filled form
+            originalOpenModalForEdit(id);
+            validateForm();
         };
-
 
         async function initializePage() {
             try {
                 await Promise.all([
                     populateRolesDropdown(),
-                    populateSocietiesDropdown()
+                    // === MODIFIED: Call the new function to populate stores ===
+                    populateStoresDropdown()
                 ]);
                 await fetchStaff();
             } catch (error) {

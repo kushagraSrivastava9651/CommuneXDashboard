@@ -98,10 +98,9 @@
             margin: 0;
         }
 
-        /* NEW: General styles for modal content to add padding */
         .modal-content {
             background-color: #ffffff;
-            padding: 28px; /* This adds the requested padding */
+            padding: 28px; 
             border-radius: 8px;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             width: 100%;
@@ -525,7 +524,7 @@
                             placeholder="Enter 6-digit pincode" maxlength="6" required pattern="\d{6}"
                             title="Pincode must be 6 digits.">
                         <p id="pincodeMessage"
-                            style="color: #ef4444; font-size: 0.8rem; margin-top: 4px; display: none;"></p>
+                            style="font-weight: 500; font-size: 0.8rem; margin-top: 4px; display: none;"></p>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="phone">Phone Number</label>
@@ -543,7 +542,7 @@
                         </div>
                     </div>
                     <div class="form-group"><label class="form-label" for="address">Address (e.g., Flat No,
-                            Block)</label><input type="text" class="form-input" id="address" name="address"></div>
+                            Block)</label><input type="text" class="form-input" id="address" name="address" required placeholder="E.g., A-123, Tower 4"></div>
                 </fieldset>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
@@ -688,9 +687,8 @@
         // =================================================================
         let allCustomers = [], allSocieties = [], availableServices = [], currentOrderItems = [];
         let currentPage = 1, isLoading = false, hasMoreCustomers = true, currentSearchTerm = '', searchTimeout, phoneCheckTimeout;
-        let currentSortKey = '', currentSortOrder = ''; 
+        let currentSortKey = '', currentSortOrder = '';
         const CUSTOMERS_PER_PAGE = 20;
-        const pincodeToSocietiesMap = { '500089': ["ASBL Springs", "ASBL Spire", "Asbl landmark", "Asbl Gooff","others"], '500032': ["Asbl landmark", "Asbl Gooff"], '500000': ["Otherss"] };
         const customerModal = document.getElementById('customerModal'), customerForm = document.getElementById('customerForm'), modalTitle = document.getElementById('modalTitle'), submitBtn = document.getElementById('submitBtn'), customerIdInput = document.getElementById('customer-id'), customerFormFieldset = document.getElementById('customerFormFieldset'), editBtn = document.getElementById('editBtn'), cancelBtn = document.getElementById('cancelBtn'), orderModal = document.getElementById('orderModal'), orderForm = document.getElementById('orderForm'), searchInput = document.getElementById('searchInput'), customerOrdersModal = document.getElementById('customerOrdersModal'), serviceTypeGroup = document.getElementById('serviceTypeGroup'), pincodeInput = document.getElementById('pincode'), pincodeMessage = document.getElementById('pincodeMessage'), societyContainer = document.getElementById('societySelectionContainer'), pickupSection = document.getElementById('pickupSection'), customerListDiv = document.getElementById('customerList'), scrollLoader = document.getElementById('scrollLoader'), mainContent = document.querySelector('.main-content'), phoneInput = document.getElementById('phone'), phoneMessage = document.getElementById('phoneMessage');
         const pickupSlotContainer = document.getElementById('pickupSlotContainer');
         const pickupSlotInput = document.getElementById('pickupSlot');
@@ -716,15 +714,15 @@
                 const response = await fetch(url);
                 if (response.status === 401) return window.location.href = '/';
                 const data = await response.json();
-                
-                if (isInitialLoad) { 
-                    allCustomers = []; 
-                    customerListDiv.innerHTML = ''; 
+
+                if (isInitialLoad) {
+                    allCustomers = [];
+                    customerListDiv.innerHTML = '';
                 }
-                
+
                 allCustomers.push(...data.customers);
                 appendCustomersToDOM(data.customers);
-                
+
                 hasMoreCustomers = data.hasMore;
                 if (!hasMoreCustomers) {
                     scrollLoader.style.display = 'none';
@@ -748,7 +746,7 @@
                 }
             }
         }
-        
+
         function appendCustomersToDOM(customersToAppend) {
             const customersHTML = customersToAppend.map((customer) => {
                 const currentAddressObj = customer.addresses?.find(a => a.isCurrent) || customer.addresses?.[0];
@@ -758,7 +756,7 @@
                 const memberSince = new Date(customer.createdAt || Date.now()).toLocaleDateString("en-IN");
                 const initials = (customer.customerName || '').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                 const safeCustomerName = customer.customerName.replace(/'/g, "\\'");
-                
+
                 const totalSpentFormatted = (customer.totalSpent || 0).toFixed(2);
 
                 return `
@@ -814,27 +812,42 @@
             if (societies.length === 0) { societyContainer.innerHTML = `<p style="color: #6b7280; grid-column: 1 / -1;">Enter a valid, serviceable pincode to see societies.</p>`; return; }
             societyContainer.innerHTML = societies.map(society => `<div class="radio-item"><input type="radio" id="society-${society._id}" name="society" value="${society._id}" required ${society._id === selectedSocietyId ? 'checked' : ''}><label for="society-${society._id}">${society.name}</label></div>`).join('');
         }
-        function handlePincodeChange() {
+
+        async function handlePincodeChange() {
             const pincode = pincodeInput.value;
             if (pincode.length < 6) {
                 pincodeMessage.style.display = 'none';
                 renderSocieties([]);
                 return;
             }
-            const serviceableSocietiesNames = pincodeToSocietiesMap[pincode];
-            if (serviceableSocietiesNames) {
-                pincodeMessage.textContent = '   Serviceable';
-                pincodeMessage.style.color = '#16a34a';
-                pincodeMessage.style.display = 'block';
-                const lowerCaseServiceableNames = serviceableSocietiesNames.map(name => name.toLowerCase());
-                renderSocieties(allSocieties.filter(society => lowerCaseServiceableNames.includes(society.name.toLowerCase())));
-            } else {
-                pincodeMessage.textContent =  '   Non Serviceable';
+
+            try {
+                const response = await fetch(`/api/societies/by-pincode/${pincode}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch societies.');
+                }
+                const serviceableSocieties = await response.json();
+
+                if (serviceableSocieties && serviceableSocieties.length > 0) {
+                    pincodeMessage.textContent = 'Serviceable';
+                    pincodeMessage.style.color = '#16a34a';
+                    pincodeMessage.style.display = 'block';
+                    renderSocieties(serviceableSocieties);
+                } else {
+                    pincodeMessage.textContent = 'Non Serviceable';
+                    pincodeMessage.style.color = '#ef4444';
+                    pincodeMessage.style.display = 'block';
+                    renderSocieties([]);
+                }
+            } catch (error) {
+                console.error("Pincode check failed:", error);
+                pincodeMessage.textContent = 'Error checking pincode.';
                 pincodeMessage.style.color = '#ef4444';
                 pincodeMessage.style.display = 'block';
                 renderSocieties([]);
             }
         }
+
         function setFormState(mode) {
             customerFormFieldset.disabled = (mode === 'view');
             modalTitle.textContent = mode === 'view' ? 'View Customer Details' : (mode === 'edit' ? 'Edit Customer Details' : 'Add New Customer');
@@ -857,13 +870,22 @@
             customerForm.reset(); customerIdInput.value = customer._id;
             document.getElementById('customerName').value = customer.customerName; document.getElementById('phone').value = customer.phone || '';
             if (currentAddress) {
-                document.getElementById('address').value = currentAddress.address || ''; pincodeInput.value = currentAddress.pincode || ''; pincodeMessage.style.display = 'none';
-                const societyId = currentAddress.society?._id || currentAddress.society;
-                const society = societyId ? allSocieties.find(s => s._id === societyId) : null;
-                if (society) { societyContainer.innerHTML = `<p style="padding: 8px 0; color: #111827; font-weight: 500;">${society.name}</p>`; } else { societyContainer.innerHTML = `<p style="color: #6b7280;">No society assigned.</p>`; }
+                const societyDoc = currentAddress.society;
+                let flatBlockAddress = currentAddress.address || '';
+
+                if (societyDoc && societyDoc.additionalAddress && flatBlockAddress.endsWith(societyDoc.additionalAddress)) {
+                    flatBlockAddress = flatBlockAddress.slice(0, -societyDoc.additionalAddress.length).replace(/,\s*$/, '');
+                }
+
+                document.getElementById('address').value = flatBlockAddress;
+                pincodeInput.value = currentAddress.pincode || '';
+                pincodeMessage.style.display = 'none';
+                const societyId = societyDoc?._id || societyDoc;
+                if (societyId) { societyContainer.innerHTML = `<p style="padding: 8px 0; color: #111827; font-weight: 500;">${societyDoc.name}</p>`; } else { societyContainer.innerHTML = `<p style="color: #6b7280;">No society assigned.</p>`; }
             } else { pincodeInput.value = ''; document.getElementById('address').value = ''; societyContainer.innerHTML = `<p style="color: #6b7280;">No address on file.</p>`; pincodeMessage.style.display = 'none'; }
             setFormState('view'); customerModal.style.display = 'block';
         };
+
         function closeCustomerModal() { customerModal.style.display = 'none'; }
         window.openOrderModal = (id) => {
             const customer = allCustomers.find(c => c._id === id); if (!customer) return;
@@ -928,7 +950,7 @@
             currentOrderItems.push(newItem); renderOrderItems();
             document.getElementById('serviceCategorySelect').value = ''; document.getElementById('serviceInputContainer').style.display = 'none';
         }
-        async function showCustomerOrders(customerId, customerName) {
+    async function showCustomerOrders(customerId, customerName) {
             const modalTitle = document.getElementById('customerOrdersModalTitle');
             const listContainer = document.getElementById('customerOrdersListContainer');
             const totalSpentEl = document.getElementById('customerTotalSpent');
@@ -1056,7 +1078,10 @@
             resetAndFetchCustomers();
         });
 
-        pincodeInput.addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^0-9]/g, ''); handlePincodeChange(); });
+        pincodeInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            handlePincodeChange();
+        });
         
         phoneInput.addEventListener('input', (e) => {
             e.target.value = e.target.value.replace(/[^0-9]/g, '');
@@ -1081,18 +1106,38 @@
         document.getElementById('closeModalBtn').addEventListener('click', closeCustomerModal);
         cancelBtn.addEventListener('click', closeCustomerModal);
         
-        editBtn.addEventListener('click', () => {
-            setFormState('edit'); const customerId = customerIdInput.value;
-            const customer = allCustomers.find(c => c._id === customerId); if (!customer) return;
+        editBtn.addEventListener('click', async () => {
+            setFormState('edit');
+            const customerId = customerIdInput.value;
+            const customer = allCustomers.find(c => c._id === customerId);
+            if (!customer) return;
+
             const currentAddress = customer.addresses.find(a => a.isCurrent) || customer.addresses[0];
-            const pincode = pincodeInput.value, selectedSocietyId = currentAddress?.society?._id || currentAddress?.society;
-            const serviceableSocietiesNames = pincodeToSocietiesMap[pincode];
-            if (serviceableSocietiesNames) {
-                pincodeMessage.style.display = 'none';
-                const lowerCaseServiceableNames = serviceableSocietiesNames.map(name => name.toLowerCase());
-                const societiesForPincode = allSocieties.filter(society => lowerCaseServiceableNames.includes(society.name.toLowerCase()));
-                renderSocieties(societiesForPincode, selectedSocietyId);
-            } else { pincodeMessage.style.display = 'block'; renderSocieties([]); }
+            const pincode = pincodeInput.value;
+            const selectedSocietyId = currentAddress?.society?._id || currentAddress?.society;
+
+            if (pincode && pincode.length === 6) {
+                try {
+                    const response = await fetch(`/api/societies/by-pincode/${pincode}`);
+                    const societiesForPincode = await response.json();
+                    if (societiesForPincode.length > 0) {
+                        pincodeMessage.textContent = 'Serviceable';
+                        pincodeMessage.style.color = '#16a34a';
+                        pincodeMessage.style.display = 'block';
+                        renderSocieties(societiesForPincode, selectedSocietyId);
+                    } else {
+                        pincodeMessage.textContent = 'Non Serviceable';
+                        pincodeMessage.style.color = '#ef4444';
+                        pincodeMessage.style.display = 'block';
+                        renderSocieties([]);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch societies on edit:", error);
+                    renderSocieties([]);
+                }
+            } else {
+                renderSocieties([]);
+            }
         });
 
         document.getElementById('closeOrderModalBtn').addEventListener('click', closeOrderModal);
